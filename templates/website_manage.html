@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block link %}
+    {% load staticfiles %}
+    <!-- font icon -->
+    <link href="{% static 'css/elegant-icons-style.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/font-awesome.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block main_content %}
+    {% load staticfiles %}
+    <h3>站点管理</h3>
+    <hr>
+    <table id="website_list"></table>
+    <div id="toolbar" class="btn-group">
+        <button id="add" class="button button-royal button-pill button-small">新增</button>
+        <button id="modify" class="button button-royal button-pill button-small">修改</button>
+        <button id="del" class="button button-royal button-pill button-small">删除</button>
+    </div>
+{% endblock %}
+
+{% block javascript %}
+    <script src="{% static 'js/bootstrap-table.js' %}"></script>
+    <script src="{% static 'js/bootstrap-table-zh-CN.js' %}"></script>
+    <script src="{% static 'js/website.js' %}"></script>
+    <script src="{% static 'js/web_manage.js' %}"></script>
+{% endblock %}

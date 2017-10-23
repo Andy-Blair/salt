@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block main_content %}
+    <h3>更新详细信息</h3>
+    <hr>
+    <textarea id="retun_data" rows="20" style="outline: none;resize: none;width:100%;overflow-y: visible" ></textarea>
+{% endblock %}
+
+{% block javascript %}
+{% load staticfiles %}
+    <script type="text/javascript">
+    $(function () {
+    var socket=new WebSocket("ws://"+window.location.host+window.location.pathname+"/s");
+    socket.onopen=function () {
+        socket.send("read_start")
+    };
+    socket.onmessage=function (event) {
+        var em =$("#retun_data");
+        var s_text=em.text();
+        em.text(s_text+event.data)
+
+    }
+});
+    </script>
+{% endblock %}

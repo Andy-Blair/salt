@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block link %}
+    {% load staticfiles %}
+    <!-- font icon -->
+    <link href="{% static 'css/elegant-icons-style.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/font-awesome.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block main_content %}
+    <h3>站点发布</h3>
+    <hr>
+    <table id="website_list"></table>
+    <div id="toolbar" class="btn-group">
+        <button class="button button-royal button-pill button-small" id="web_update" name="update" data-toggle="modal" data-target="">更新</button>
+        <button class="button button-royal button-pill button-small" id="web_rollback" name="rollback">快速回滚</button>
+    </div>
+{% endblock %}
+
+{% block javascript %}
+    <script src="{% static 'js/bootstrap-table.js' %}"></script>
+    <script src="{% static 'js/bootstrap-table-zh-CN.js' %}"></script>
+    <script src="{% static 'js/website.js' %}"></script>
+{% endblock %}

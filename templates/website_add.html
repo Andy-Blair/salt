@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% load staticfiles %}
+
+{% block main_content %}
+    {% block hr_up %}
+    <div style="text-align: center"><h3>站点新增</h3></div>
+    {% endblock %}
+<hr>
+
+<div align="center">
+    <form id="webform" action="" method="post">
+                <table style="width: 50%;border-collapse:separate;border-spacing:0 0.5rem;" >
+                    <tr>
+                        <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;" >站点名称&nbsp</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle;"><input class="form-control" required type="text" style="width: 100%;" name="web_name" value="{{ webinfo.name }}"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;">域名&nbsp</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle;"><input class="form-control" required type="text" style="width: 100%;" name="web_url" value="{{ webinfo.url }}"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;">物理路径&nbsp</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle;"><input id="web_path" class="form-control" required type="text" style="width: 100%;" placeholder="填写绝对路径, Windows:D:\X\X  Linux:/X/X"  name="web_path" value="{{ webinfo.path }}"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;">应用类型&nbsp</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle;">
+                            <select name="apptype" id="apptype" class="form-control" style="width: 100%">
+                                <option>请选择</option>
+                                <option>tomcat</option>
+                                <option>IIS</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;">GitPath&nbsp</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle"><input id="git_path" class="form-control" required type="text" style="width: 100%;" placeholder="填写SSH协议Git地址"  name="web_git_url" value="{{ webinfo.git_url }}"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;">部署服务器IP&nbsp</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle">
+                            <input id="serverip" class="form-control" required type="text" style="width: 100%;" placeholder="多个IP地址请以英文逗号分割"  name="serverip" value="{{ serverip }}">
+                        </td>
+                    </tr>
+                </table>
+        <div align="right" style="padding-top: 10px" class="col-md-6">
+            <button type="submit" id="save" class="button button-royal button-pill button-small">保存</button>
+        </div>
+    </form>
+    <div class="col-md-6" align="left" style="padding-top: 10px;padding-left: 50px">
+        <a href="{% url "website_manage" %}"><button class="button button-royal button-pill button-small">返回</button></a>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script src="{% static 'js/website_add.js' %}"></script>
+<script type="text/javascript">
+    $(function () {
+        $("#apptype option").each(function () {
+            if($(this).text() === '{{ webinfo.type }}'){
+                $(this).attr('selected','selected')
+            }
+        });
+    })
+</script>
+{% endblock %}

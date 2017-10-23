@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block link %}
+    {% load staticfiles %}
+    <!-- font icon -->
+    <link href="{% static 'css/elegant-icons-style.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/font-awesome.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block main_content %}
+    <h3>服务器管理</h3>
+    <hr>
+    <table id="server_list"></table>
+    <div id="toolbar" class="btn-group">
+        <button id="update_servers" class="button button-royal button-pill button-small">更新服务器</button>
+    </div>
+{% endblock %}
+
+{% block javascript %}
+    <script src="{% static 'js/bootstrap-table.js' %}"></script>
+    <script src="{% static 'js/bootstrap-table-zh-CN.js' %}"></script>
+    <script src="{% static 'js/servers.js' %}"></script>
+{% endblock %}
