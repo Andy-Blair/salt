@@ -65,7 +65,7 @@ def detail_socket(request,operate,web_id):
 
             # --- checkout code to local(/srv/salt/project) from remote. start ---
             pro = web_git_url.split("/")[1:]
-            rel_git_url = "git@git.jingzhengu.com:jenkins/" + "/".join(pro)
+            rel_git_url = "git@igit.jingzhengu.com:jenkins/" + "/".join(pro)
             request.websocket.send("正在获取更新文件......\n\n".encode('utf8'))
             result = git_checkout.git_checkout(git_url=rel_git_url,op=operate)
             if result == 2:

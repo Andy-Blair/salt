@@ -54,6 +54,9 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'saltstack.urls'
 
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_AGE = 1800
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
