@@ -64,21 +64,16 @@ def detail_socket(request,operate,web_id):
             re_tomcat = False
 
             # --- checkout code to local(/srv/salt/project) from remote. start ---
-            pro = web_git_url.split("/")[1:]
-            rel_git_url = "git@igit.jingzhengu.com:jenkins/" + "/".join(pro)
+            # pro = web_git_url.split("/")[1:]
+            # rel_git_url = "git@git.jingzhengu.com:jenkins/" + "/".join(pro)
             request.websocket.send("正在获取更新文件......\n\n".encode('utf8'))
-            result = git_checkout.git_checkout(git_url=rel_git_url,op=operate)
-            if result == 2:
-                request.websocket.send("没有找到该项目！\n\n".encode('utf8'))
-            elif result ==1:
+            result = git_checkout.git_checkout(git_url=web_git_url,op=operate)
+            if result == 0:
                 sync = True
-                request.websocket.send("获取文件成功！\n\n".encode('utf8'))
-            elif result == 0:
-                sync = True
-                request.websocket.send("获取文件成功！\n\n".encode('utf8'))
+                request.websocket.send("获取更新文件成功！\n\n".encode('utf8'))
             else:
-                request.websocket.send("获取文件失败，请联系运维部！\n\n".encode('utf8'))
-            # --- checkout code to local(/srv/salt/project) from remote. stop ---
+                request.websocket.send("获取更新文件失败，请联系运维部！\n\n".encode('utf8'))
+            # --- checkout code to local(/srv/salt/project) from remote. end ---
 
             if sync:
                 web_servers_info = web_info.server_id.values()
@@ -110,7 +105,7 @@ def detail_socket(request,operate,web_id):
                     if top_sls_data not in top_sls_content:
                         top_sls.write(top_sls_data)
                     top_sls.close()
-                # --- create pro_name.sls file and add call-command to top.sls. stop ---
+                # --- create pro_name.sls file and add call-command to top.sls. end ---
 
                 # --- sync files from server. start ---
                 cli = client.LocalClient()
@@ -138,7 +133,7 @@ def detail_socket(request,operate,web_id):
                     else:
                         request.websocket.send("文件都是最新的，不需要更新！\n".encode('utf8'))
                     request.websocket.send("\n".encode('utf8'))
-                # --- sync files from server. stop ---
+                # --- sync files from server. end ---
 
                     # --- Read Tomcat Log. start ---
                     if web_info.type.lower() == "tomcat" and re_tomcat:
@@ -166,6 +161,7 @@ def detail_socket(request,operate,web_id):
                                 # request.websocket.send("---END---\n".encode('utf8'))
                                 break
                     request.websocket.send("------更新完成！------\n\n".encode('utf8'))
+                    # --- Read Tomcat Log. end ---
             break
         request.websocket.close()
 

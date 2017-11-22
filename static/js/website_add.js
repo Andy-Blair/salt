@@ -33,7 +33,8 @@ $("form").submit(function () {
     var gitpath=$("#git_path").val();
     var re_wpath=/^[a-zA-Z]:\\/;
     var iswpath=re_wpath.test(webpath);
-    var re_lpath=/^\/apps\/product\/tomcat\//;
+    // var re_lpath=/^\/apps\/product\/tomcat\//;
+    var re_lpath=/^\//;
     var islpath=re_lpath.test(webpath);
     if(!iswpath && !islpath){
         alert("Web站点物理路径格式不正确");
