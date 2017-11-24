@@ -144,11 +144,12 @@ def detail_socket(request,operate,web_id):
                         r_log = "/apps/product/tomcat/logs/catalina.out"  # tomcat的启动日志路径
                         cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f {log_path}".format(user=r_user, ip=r_ip, port=r_port, log_path=r_log)
                         cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
-                        cmd_tstop = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/shutdown.sh".format(user=r_user, ip=r_ip, port=r_port)
+                        # cmd_tstop = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/script/tomcat_shutdown.sh".format(user=r_user, ip=r_ip, port=r_port)
+                        # cmd_kill_tail = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/script/kill_tail.sh".format(user=r_user, ip=r_ip, port=r_port)
                         p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                        p_stop = subprocess.Popen(cmd_tstop, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                        # p_stop = subprocess.Popen(cmd_tstop, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                        tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=('pkg.scripts.tomcat_shutdown'))
                         request.websocket.send("Tomcat has stopped\n\n".encode('utf8'))
-
                         p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                         while p_start.poll() == None:
                             start_l = p_start.stdout.readline()
@@ -160,6 +161,7 @@ def detail_socket(request,operate,web_id):
                             if "Server startup in" in re_log:
                                 # request.websocket.send("---END---\n".encode('utf8'))
                                 break
+                        kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=('pkg.scripts.kill_tail'))
                     request.websocket.send("------更新完成！------\n\n".encode('utf8'))
                     # --- Read Tomcat Log. end ---
             break
