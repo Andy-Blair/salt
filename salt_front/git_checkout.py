@@ -44,7 +44,8 @@ def git_checkout( git_url, op):
                     elif os.path.isdir(filepath):
                         shutil.rmtree(filepath, True)
         else:
-            os.remove(git_dir_path)
+            if os.path.exists(git_dir_path):
+                os.remove(git_dir_path)
             os.makedirs(git_dir_path)
         try:
             g.init()
