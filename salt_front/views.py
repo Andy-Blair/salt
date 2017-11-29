@@ -112,7 +112,7 @@ def detail_socket(request,operate,web_id):
                 request.websocket.send("正在更新......\n\n".encode('utf8'))
                 for i in web_server_ip:
                     request.websocket.send(i.strip().encode('utf8')+":\n".encode('utf8'))
-                    sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=('project.%s' % pro_name,))
+                    sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['project.%s' % pro_name])
                     def get_change(dic):
                         # get change files
                         for k, v in dic.items():
@@ -148,7 +148,7 @@ def detail_socket(request,operate,web_id):
                         # cmd_kill_tail = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/script/kill_tail.sh".format(user=r_user, ip=r_ip, port=r_port)
                         p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                         # p_stop = subprocess.Popen(cmd_tstop, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                        tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=('pkg.scripts.tomcat_shutdown'))
+                        tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.scripts.tomcat_shutdown'])
                         request.websocket.send("Tomcat has stopped\n\n".encode('utf8'))
                         p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                         while p_start.poll() == None:
@@ -161,7 +161,7 @@ def detail_socket(request,operate,web_id):
                             if "Server startup in" in re_log:
                                 # request.websocket.send("---END---\n".encode('utf8'))
                                 break
-                        kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=('pkg.scripts.kill_tail'))
+                        kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.scripts.kill_tail'])
                     request.websocket.send("------更新完成！------\n\n".encode('utf8'))
                     # --- Read Tomcat Log. end ---
             break
@@ -320,7 +320,7 @@ def server_manage(request):
         return HttpResponseRedirect('/')
     if request.method == "POST":
         cli = client.LocalClient()
-        re_id = cli.cmd(tgt='*',fun='grains.item',arg= ('os',))
+        re_id = cli.cmd(tgt='*',fun='grains.item',arg= ['os'])
         for k , v in re_id.items():
             exsit = Servers.objects.filter(ipaddress=k)
             if exsit:
