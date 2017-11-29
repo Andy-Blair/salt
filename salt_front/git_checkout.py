@@ -50,7 +50,7 @@ def git_checkout( git_url, op):
         try:
             g.init()
             g.remote("add", remote_repo_name, git_url)
-            g.fetch(remote_repo_name, used_branch)
+            g.fetch(remote_repo_name)
             g.checkout(used_branch)
         except:
             return 1
