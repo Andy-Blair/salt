@@ -5,7 +5,6 @@ from django.shortcuts import render_to_response, HttpResponse, HttpResponseRedir
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User, Group
-from django.http import Http404
 from models import *
 from salt import client
 import json
@@ -13,6 +12,7 @@ import git_checkout
 from dwebsocket import accept_websocket
 import os
 import subprocess
+import sys
 
 
 # Create your views here.
@@ -201,8 +201,43 @@ def website_add(request):
         web = Website(name=rec_data['web_name'],url=rec_data['web_url'],path=rec_data['web_path'],
                       type=rec_data['apptype'],git_url=rec_data['web_git_url'])
         web.save()
+        cli = client.LocalClient()
+        git_pyscript = "/srv/salt/pkg/scripts/git_updatefile.py"
+        py_content = open(git_pyscript, 'r'.encode())
+        py_lines = py_content.readlines()
+        py_content.close()
+        py_flen = len(py_lines)
+        for num in range(py_flen):
+            if py_lines[num] == 'pro_git = ""\n':
+                py_lines[num] = py_lines[num].replace(py_lines[num], rec_data['web_git_url'] + "\n")
+            elif py_lines[num] == 'pro_path = ""\n':
+                py_lines[num] = py_lines[num].replace(py_lines[num], rec_data['web_path'] + "\n")
+        pyscript_name = rec_data['web_url']
+        new_py = open("/srv/salt/pkg/scripts/web_git/%s.py" % pyscript_name, "w".encode())
+        new_py.writelines(py_lines)
+        new_py.close()
+        push_slsmode = "/srv/salt/pkg/scripts/git_update.sls"
+        sls_content = open(push_slsmode, 'r'.encode())
+        sls_lines = sls_content.readlines()
+        sls_content.close()
+        sls_flen = len(sls_lines)
+        for num in range(sls_flen):
+            if "- name:" in sls_lines[num]:
+                if sys.platform == "win32":
+                    sls_lines[num] = sls_lines[num].strip() + " d:/product/web_git/%s.py\n" % pyscript_name
+                else:
+                    sls_lines[num] = sls_lines[num].strip() + " /apps/product/web_git/%s.py\n" % pyscript_name
+            if "- source:" in sls_lines[num]:
+                sls_lines[num] = sls_lines[num].strip() + "%s.py\n" % pyscript_name
+        new_sls = open("/srv/salt/pkg/scripts/web_git/%s.sls" % pyscript_name, "w".encode())
+        new_sls.writelines(sls_lines)
+        new_sls.close()
+        top_sls = open("/srv/salt/top.sls", "a+".encode())
+        top_sls.write("pkg.scripts.web_git.%s\n".encode() % pyscript_name)
+        top_sls.close()
         for ip in rec_data['serverip'].split(','):
             web.server_id.add(Servers.objects.get(ipaddress=ip.decode('utf8')))
+            cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.scripts.web_git.%s" % pyscript_name])
         return HttpResponseRedirect('/salt/website_manage/')
 
 
