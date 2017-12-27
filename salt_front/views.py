@@ -97,7 +97,7 @@ def detail_socket(request,operate):
                     else:
                         commit = Commit.objects.get(tag_name=tag_name)
                         commit_id = commit.commit_id
-                        file_path = "/srv/salt/pkg/scripts/web_git/%s/%s_rollback.sls" % (sls_name, sls_name)
+                        file_path = "/srv/salt/pkg/script/web_git/%s/%s_rollback.sls" % (sls_name, sls_name)
                         f = open(file_path,'r')
                         lines = f.readlines()
                         f.close()
@@ -238,7 +238,7 @@ def create_pro_file(request):
 
     rec_data = request.POST
     cli = client.LocalClient()
-    git_pyscript = "/srv/salt/pkg/scripts/git_update.py"
+    git_pyscript = "/srv/salt/pkg/script/git_update.py"
     py_content = open(git_pyscript, 'r')
     py_lines = py_content.readlines()
     py_content.close()
@@ -252,15 +252,15 @@ def create_pro_file(request):
             else:
                 py_lines[num] = py_lines[num].replace(py_lines[num], "git_path = '%s'" % rec_data['web_path'] + "\n")
     pyscript_name = rec_data['web_url'].replace(".", "_")
-    web_scr_dir = "/srv/salt/pkg/scripts/web_git/%s" % pyscript_name
+    web_scr_dir = "/srv/salt/pkg/script/web_git/%s" % pyscript_name
     if not os.path.exists(web_scr_dir + "/"):
         if os.path.exists(web_scr_dir):
             os.remove(web_scr_dir)
         os.mkdir(web_scr_dir + "/")
-    new_py = open("/srv/salt/pkg/scripts/web_git/%s/%s.py" % (pyscript_name, pyscript_name), "w")
+    new_py = open("/srv/salt/pkg/script/web_git/%s/%s.py" % (pyscript_name, pyscript_name), "w")
     new_py.writelines(py_lines)
     new_py.close()
-    push_slsmode = "/srv/salt/pkg/scripts/git_update.sls"
+    push_slsmode = "/srv/salt/pkg/script/git_update.sls"
     sls_content = open(push_slsmode, 'r')
     sls_lines = sls_content.readlines()
     sls_content.close()
@@ -272,10 +272,10 @@ def create_pro_file(request):
             else:
                 sls_lines[num - 1] = "    " + sls_lines[num - 1].strip() + " /apps/product/web_git/%s.py\n" % pyscript_name
             sls_lines[num] = "    " + sls_lines[num].strip() + "%s/%s.py\n" % (pyscript_name, pyscript_name)
-    new_sls = open("/srv/salt/pkg/scripts/web_git/%s/%s.sls" % (pyscript_name, pyscript_name), "w")
+    new_sls = open("/srv/salt/pkg/script/web_git/%s/%s.sls" % (pyscript_name, pyscript_name), "w")
     new_sls.writelines(sls_lines)
     new_sls.close()
-    git_run_script = "/srv/salt/pkg/scripts/git_update_run.sls"
+    git_run_script = "/srv/salt/pkg/script/git_update_run.sls"
     sls_git_content = open(git_run_script, 'r')
     sls_git_lines = sls_git_content.readlines()
     sls_git_content.close()
@@ -289,10 +289,10 @@ def create_pro_file(request):
                 sls_git_lines[num] = "    " + sls_git_lines[
                     num].strip() + " /apps/product/web_git/%s.py update\n" % pyscript_name
                 sls_git_lines.append("    - user: app")
-    update_git_sls = open("/srv/salt/pkg/scripts/web_git/%s/%s_update.sls" % (pyscript_name, pyscript_name), "w")
+    update_git_sls = open("/srv/salt/pkg/script/web_git/%s/%s_update.sls" % (pyscript_name, pyscript_name), "w")
     update_git_sls.writelines(sls_git_lines)
     update_git_sls.close()
-    rollback_git_sls = open("/srv/salt/pkg/scripts/web_git/%s/%s_rollback.sls" % (pyscript_name, pyscript_name), "w")
+    rollback_git_sls = open("/srv/salt/pkg/script/web_git/%s/%s_rollback.sls" % (pyscript_name, pyscript_name), "w")
     rollback_git_sls.writelines(sls_git_lines)
     rollback_git_sls.close()
     top_sls = open("/srv/salt/top.sls", "a+")
