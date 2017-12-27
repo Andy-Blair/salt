@@ -306,11 +306,12 @@ def create_pro_file(request):
     top_sls.close()
     for ip in rec_data['serverip'].split(','):
         sync_re = cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.script.web_git.%s.%s" % (pyscript_name, pyscript_name)])
+        print sync_re
         result = get_dval(sync_re,"result")
         if result:
-            server = Servers.objects.get(ipaddress=ip)
-            server.init_result = 1
-            server.save()
+            web = Website.objects.get(name=rec_data['web_name'])
+            web.init_result = 1
+            web.save()
 
     return HttpResponse()
 
@@ -383,24 +384,25 @@ def wesite_list(request):
                 d = {}
                 d['id'] = i.website_id
                 d['website_name'] = i.name
-                d['website_url'] = i.url
-                d['website_type'] = i.type
-                server = i.server_id.values()
-                ips = []
                 init_fail = False
-                for item in range(len(server)):
-                    ip = server[item]['ipaddress']
-                    init_result = server[item]['init_result']
-                    if init_result == 0:
-                        ip = ip + '...<font color="#FF0000">not init</font>'
-                        init_fail = True
-                    ips.append(ip)
-                    d['website_ostype'] = server[item]['ostype']
-                d['website_server'] = ','.join(ips)
+                init_result = i.init_result
+                if init_result == 0:
+                    d['website_url'] = i.url + '...<font color="#FF0000">not init</font>'
+                    init_fail = True
+                else:
+                    d['website_url'] = i.url
                 if init_fail:
                     d['init_result'] = 0
                 else:
                     d['init_result'] = 1
+                d['website_type'] = i.type
+                server = i.server_id.values()
+                ips = []
+                for item in range(len(server)):
+                    ip = server[item]['ipaddress']
+                    ips.append(ip)
+                    d['website_ostype'] = server[item]['ostype']
+                d['website_server'] = ','.join(ips)
                 data.append(d)
         else:
             for group in groups:
@@ -417,22 +419,24 @@ def wesite_list(request):
                 d['website_name'] = web.name
                 d['website_url'] = web.url
                 d['website_type'] = web.type
-                server = web.server_id.values()
-                ips = []
                 init_fail = False
-                for item in range(len(server)):
-                    ip = server[item]['ipaddress']
-                    init_result = server[item]['init_result']
-                    if init_result == 0:
-                        ip = ip + '...<font color="#FF0000">not init</font>'
-                        init_fail = True
-                    ips.append(ip)
-                    d['website_ostype'] = server[item]['ostype']
-                d['website_server'] = ','.join(ips)
+                init_result = i.init_result
+                if init_result == 0:
+                    d['website_url'] = i.url + '...<font color="#FF0000">not init</font>'
+                    init_fail = True
+                else:
+                    d['website_url'] = i.url
                 if init_fail:
                     d['init_result'] = 0
                 else:
                     d['init_result'] = 1
+                server = web.server_id.values()
+                ips = []
+                for item in range(len(server)):
+                    ip = server[item]['ipaddress']
+                    ips.append(ip)
+                    d['website_ostype'] = server[item]['ostype']
+                d['website_server'] = ','.join(ips)
                 data.append(d)
         return HttpResponse(json.dumps(data), content_type="application/json")
 

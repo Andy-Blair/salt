@@ -14,7 +14,6 @@ class Servers(models.Model):
     ostype = models.CharField(max_length=50)
     describe = models.CharField(max_length=200)
     group = models.ForeignKey(Group)
-    init_result = models.IntegerField(default=0)  # 0-not init,1-init success,2-init fail
 
     def __unicode__(self):
         return self.ipaddress
@@ -29,6 +28,7 @@ class Website(models.Model):
     type = models.CharField(max_length=50)
     git_url = models.CharField(max_length=100,default="-")
     server_id = models.ManyToManyField(Servers)
+    init_result = models.IntegerField(default=0)  # 0-not init,1-init success,2-init fail
 
     def __unicode__(self):
         return self.name
@@ -52,7 +52,7 @@ class Commit(models.Model):
     commit_id = models.CharField(max_length=100)
     author = models.CharField(max_length=50)
     date = models.CharField(max_length=50)
-    message = models.CharField(max_length=10000)
+    message = models.CharField(max_length=500)
     website_id = models.ForeignKey(Website)
 
     def __unicode__(self):
