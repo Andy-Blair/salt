@@ -16,21 +16,14 @@
                             <div style="height: 25px;text-align: right; vertical-align: middle;" >站点名称&nbsp</div>
                             <div class="fht-cell"></div>
                         </td>
-                        <td style="text-align: center; vertical-align: middle;"><input class="form-control" required type="text" style="width: 100%;" name="web_name" value="{{ webinfo.name }}"></td>
+                        <td style="text-align: center; vertical-align: middle;"><input id="web_name" class="form-control" required type="text" style="width: 100%;" name="web_name" value="{{ webinfo.name }}"></td>
                     </tr>
                     <tr>
                         <td>
                             <div style="height: 25px;text-align: right; vertical-align: middle;">域名&nbsp</div>
                             <div class="fht-cell"></div>
                         </td>
-                        <td style="text-align: center; vertical-align: middle;"><input class="form-control" required type="text" style="width: 100%;" name="web_url" value="{{ webinfo.url }}"></td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div style="height: 25px;text-align: right; vertical-align: middle;">物理路径&nbsp</div>
-                            <div class="fht-cell"></div>
-                        </td>
-                        <td style="text-align: center; vertical-align: middle;"><input id="web_path" class="form-control" required type="text" style="width: 100%;" placeholder="填写绝对路径, Windows:D:\X\X  Linux:/X/X"  name="web_path" value="{{ webinfo.path }}"></td>
+                        <td style="text-align: center; vertical-align: middle;"><input id="web_url" class="form-control" required type="text" style="width: 100%;" name="web_url" value="{{ webinfo.url }}"></td>
                     </tr>
                     <tr>
                         <td>
@@ -45,6 +38,13 @@
                                 <option>其他</option>
                             </select>
                         </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;">物理路径&nbsp</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle;"><input id="web_path" class="form-control" required type="text" style="width: 100%;" placeholder="填写绝对路径, Windows:D:\X\X  Linux:/X/X"  name="web_path" value="{{ webinfo.path }}"></td>
                     </tr>
                     <tr>
                         <td>

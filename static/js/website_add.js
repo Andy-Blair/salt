@@ -2,6 +2,36 @@
  * Created by root on 9/22/17.
  */
 
+$(function () {
+   $("#apptype").change(function () {
+       var apptype=$(this).children('option:selected').text();
+       var p = $("#web_path");
+       var url = $("#web_url").val();
+       var tomcat_path = "/apps/product/tomcat/webapps/";
+       var iis_path = "D:\\product\\";
+       var readonly = false;
+       if (url){
+           iis_path = iis_path+url;
+           readonly = true;
+       }
+       if (apptype === "tomcat"){
+           p.val(tomcat_path);
+           p.attr("readonly","readonly");
+       }else if (apptype === "IIS"){
+           if (readonly){
+               p.attr("readonly","readonly");
+               p.val(iis_path)
+           }else {
+               p.removeAttr("readonly");
+               p.val("d:\\product\\");
+           }
+       }else {
+           p.removeAttr("readonly");
+           p.val('')
+       }
+   })
+});
+
 var isIp = function (){
         var regexp = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 
@@ -27,27 +57,23 @@ var isIp = function (){
         }
     }();
 
-
-
-var hasip = function (ip) {
-    var re=$.ajax({
-        url:'/salt/website_manage/au',
+var server_auth = function (ip) {
+    return $.ajax({
+        url:'/salt/website/add/server/auth',
         async:false,
         type:"POST",
-        data:{'serverip':ip}
+        data:{'ipaddress':ip}
         });
-    return re
 };
 
-// $('#save').click(function () {
-//      var data = {};
-//      var form_data = $('form').serializeArray();
-//      $.each(form_data,function () {
-//          data[this.name]=this.value
-//      });
-//      $.post('/salt/website/add/cpf/',data);
-//      });
-
+var website_auth = function (url) {
+    return $.ajax({
+        url:'/salt/website/add/website/auth',
+        async:false,
+        type:"POST",
+        data:{'url':url}
+        });
+};
 
 $("#webform").submit(function () {
     var se = $("#apptype");
@@ -80,11 +106,17 @@ $("#webform").submit(function () {
     if(!isIP){
         alert("部署服务器IP格式不正确");
         return false
-    };
-    var ip = hasip(ips);
+    }
+    var ip = server_auth(ips);
     if(ip["responseText"].length!==0){
         alert("no server "+ip["responseText"]);
         return false;
+    }
+    var web_url = $("#web_url").val();
+    var exsit_web_name = website_auth(web_url);
+    if(exsit_web_name["responseText"] === "exsit"){
+        alert(web_url+"  already exsit");
+        return false
     }
     var data = {};
     var form_data = $('form').serializeArray();

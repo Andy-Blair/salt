@@ -56,7 +56,7 @@ $(function () {
             $('#tag').change(function () {
                 var tag_name=$(this).children('option:selected').text();
                 if (tag_name === "请选择"){
-                    $('#com_message').empty()
+                    $('#com_message').val('')
                 }else {
                     $.post("/salt/website/tag/",{tag_name:tag_name,web_id:row_data[0]['id']},function (data) {
                     $('#com_message').text(data)

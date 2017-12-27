@@ -90,9 +90,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'saltstack',
-        'USER': 'root',
+        'USER': 'django',
         'PASSWORD': '1qaz@WSX',
-        'HOST': '127.0.0.1',
+        'HOST': 'mydb.jzg.lo',
         'PORT': '3306',
         'OPTIONS':{
             'init_command':"SET sql_mode='STRICT_TRANS_TABLES'",
@@ -144,52 +144,52 @@ STATICFILES_DIRS = [
   os.path.join(BASE_DIR, "static"),
   ]
 
-# LOGGING = {
-#  'version': 1,
-#  'disable_existing_loggers': True,
-#  'formatters': {#日志格式
-#  'standard': {
-#   'format': '%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s'}
-#  },
-#  'filters': {#过滤器
-#  'require_debug_false': {
-#   '()': 'django.utils.log.RequireDebugFalse',
-#   }
-#  },
-#  'handlers': {#处理器
-#  'null': {
-#   'level': 'DEBUG',
-#   'class': 'logging.NullHandler',
-#  },
-#  'debug': {#记录到日志文件(需要创建对应的目录，否则会出错)
-#   'level':'ERROR',
-#   'class':'logging.handlers.RotatingFileHandler',
-#   'filename': '/var/log/django.log',#日志输出文件
-#   'maxBytes':1024*1024*5,#文件大小
-#   'backupCount': 5,#备份份数
-#   'formatter':'standard',#使用哪种formatters日志格式
-#  },
-#  'console':{#输出到控制台
-#   'level': 'INFO',
-#   'class': 'logging.StreamHandler',
-#   'formatter': 'standard',
-#  },
-#  },
-#  'loggers': {#logging管理器
-#  'django': {
-#   'handlers': ['debug'],
-#   'level': 'DEBUG',
-#   'propagate': False
-#  },
-#  'django.request': {
-#   'handlers': ['debug'],
-#   'level': 'DEBUG',
-#   'propagate': True,
-#  },
-#  # 对于不在 ALLOWED_HOSTS 中的请求不发送报错邮件
-#  'django.security.DisallowedHost': {
-#   'handlers': ['null'],
-#   'propagate': False,
-#  },
-#  }
-# }
+LOGGING = {
+ 'version': 1,
+ 'disable_existing_loggers': True,
+ 'formatters': {#日志格式
+ 'standard': {
+  'format': '%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s'}
+ },
+ 'filters': {#过滤器
+ 'require_debug_false': {
+  '()': 'django.utils.log.RequireDebugFalse',
+  }
+ },
+ 'handlers': {#处理器
+ 'null': {
+  'level': 'DEBUG',
+  'class': 'logging.NullHandler',
+ },
+ 'debug': {#记录到日志文件(需要创建对应的目录，否则会出错)
+  'level':'ERROR',
+  'class':'logging.handlers.RotatingFileHandler',
+  'filename': '/var/log/django.log',#日志输出文件
+  'maxBytes':1024*1024*5,#文件大小
+  'backupCount': 5,#备份份数
+  'formatter':'standard',#使用哪种formatters日志格式
+ },
+ 'console':{#输出到控制台
+  'level': 'INFO',
+  'class': 'logging.StreamHandler',
+  'formatter': 'standard',
+ },
+ },
+ 'loggers': {#logging管理器
+ 'django': {
+  'handlers': ['debug'],
+  'level': 'DEBUG',
+  'propagate': False
+ },
+ 'django.request': {
+  'handlers': ['debug'],
+  'level': 'DEBUG',
+  'propagate': True,
+ },
+ # 对于不在 ALLOWED_HOSTS 中的请求不发送报错邮件
+ 'django.security.DisallowedHost': {
+  'handlers': ['null'],
+  'propagate': False,
+ },
+ }
+}

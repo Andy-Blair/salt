@@ -346,15 +346,24 @@ def website_modify(request,web_id):
 
 
 @login_required(login_url=login_url)
-def website_server_au(request):
+def server_auth(request):
     if request.method == "POST":
         rec_data = request.POST
-        for ip in rec_data['serverip'].split(','):
+        for ip in rec_data['ipaddress'].split(','):
             exsit_ip = Servers.objects.filter(ipaddress=ip)
             if not exsit_ip:
                 return HttpResponse(ip)
         return HttpResponse()
 
+
+@login_required(login_url=login_url)
+def website_auth(request):
+    if request.method == "POST":
+        rec_data = request.POST
+        exsit_web = Website.objects.filter(url=rec_data["url"])
+        if exsit_web:
+            return HttpResponse("exsit")
+        return HttpResponse()
 
 @login_required(login_url=login_url)
 def website_del(request,web_id):
