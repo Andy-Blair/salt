@@ -93,7 +93,7 @@ def detail_socket(request,operate):
                 for i in web_server_ip:
                     request.websocket.send(i.strip().encode('utf8') +":\n")
                     if operate == "update":
-                        sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.scripts.web_git.%s.%s_update' % (sls_name, sls_name)])
+                        sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_update' % (sls_name, sls_name)])
                     else:
                         commit = Commit.objects.get(tag_name=tag_name)
                         commit_id = commit.commit_id
@@ -111,7 +111,7 @@ def detail_socket(request,operate):
                         new_f = open(file_path,'w')
                         new_f.writelines(lines)
                         new_f.close()
-                        sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.scripts.web_git.%s.%s_rollback' % (sls_name, sls_name)])
+                        sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_rollback' % (sls_name, sls_name)])
                     def get_dval(dic,key):
                         # get change files
                         for k, v in dic.items():
@@ -167,7 +167,7 @@ def detail_socket(request,operate):
                         cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f {log_path}".format(user=r_user, ip=r_ip, port=r_port, log_path=r_log)
                         cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
                         p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                        tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.scripts.tomcat_shutdown'])
+                        tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
                         request.websocket.send("Tomcat has stopped\n\n")
                         p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                         while p_start.poll() == None:
@@ -179,7 +179,7 @@ def detail_socket(request,operate):
                             request.websocket.send(re_log)
                             if "Server startup in" in re_log:
                                 break
-                        kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.scripts.kill_tail'])
+                        kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
 
                     # --- Read Tomcat Log. end ---
                 break
@@ -296,16 +296,16 @@ def create_pro_file(request):
     rollback_git_sls.writelines(sls_git_lines)
     rollback_git_sls.close()
     top_sls = open("/srv/salt/top.sls", "a+")
-    top_data = ["    - pkg.scripts.web_git.%s.%s\n" % (pyscript_name, pyscript_name),
-                "    - pkg.scripts.web_git.%s.%s_update\n" % (pyscript_name, pyscript_name),
-                "    - pkg.scripts.web_git.%s.%s_rollback\n" % (pyscript_name, pyscript_name)]
+    top_data = ["    - pkg.script.web_git.%s.%s\n" % (pyscript_name, pyscript_name),
+                "    - pkg.script.web_git.%s.%s_update\n" % (pyscript_name, pyscript_name),
+                "    - pkg.script.web_git.%s.%s_rollback\n" % (pyscript_name, pyscript_name)]
     top_sls_lines = top_sls.readlines()
     for top_item in top_data:
         if top_item not in top_sls_lines:
             top_sls.write(top_item)
     top_sls.close()
     for ip in rec_data['serverip'].split(','):
-        sync_re = cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.scripts.web_git.%s.%s" % (pyscript_name, pyscript_name)])
+        sync_re = cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.script.web_git.%s.%s" % (pyscript_name, pyscript_name)])
         result = get_dval(sync_re,"result")
         if result:
             server = Servers.objects.get(ipaddress=ip)
