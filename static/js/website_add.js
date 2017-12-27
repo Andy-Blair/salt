@@ -27,7 +27,29 @@ var isIp = function (){
         }
     }();
 
-$("form").submit(function () {
+
+
+var hasip = function (ip) {
+    var re=$.ajax({
+        url:'/salt/website_manage/au',
+        async:false,
+        type:"POST",
+        data:{'serverip':ip}
+        });
+    return re
+};
+
+// $('#save').click(function () {
+//      var data = {};
+//      var form_data = $('form').serializeArray();
+//      $.each(form_data,function () {
+//          data[this.name]=this.value
+//      });
+//      $.post('/salt/website/add/cpf/',data);
+//      });
+
+
+$("#webform").submit(function () {
     var se = $("#apptype");
     var webpath=$("#web_path").val();
     var gitpath=$("#git_path").val();
@@ -64,14 +86,10 @@ $("form").submit(function () {
         alert("no server "+ip["responseText"]);
         return false;
     }
+    var data = {};
+    var form_data = $('form').serializeArray();
+    $.each(form_data,function () {
+        data[this.name]=this.value
+    });
+    $.post('/salt/website/add/cpf/',data);
 });
-
-var hasip = function (ip) {
-    var re=$.ajax({
-        url:'/salt/website_manage/au',
-        async:false,
-        type:"POST",
-        data:{'serverip':ip}
-        });
-    return re
-};

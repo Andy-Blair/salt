@@ -11,6 +11,36 @@ function confirmAct() {
 }
 
 $(function () {
+    $('#website_list').bootstrapTable({
+        columns:[
+            {checkbox: true},
+            {field: 'id', title: 'ID', align:'center', valign:'middle', visible:false},
+            {field: 'website_name', title: '站点名称', width:'',  align:'center', valign:'middle'},
+            {field: 'website_url', title: '站点域名', width:'',  align:'center', valign:'middle'},
+            {field: 'website_type', title: '应用类型', width:'',  align:'center', valign:'middle'},
+            {field: 'website_server', title: '服务器', width:'',  align:'center', valign:'middle'},
+            {field: 'website_ostype', title: '系统类型', width:'',  align:'center', valign:'middle'},
+            {field: 'website_detail', title: '', width:'',  align:'center', valign:'middle', formatter:function (value, row, index) {
+                var u = "/salt/website/"+row.id+"/d";
+                return '<a href='+u+'>详细信息</a>';
+            }},
+        ],
+        url: '/salt/website_list/',
+        method: 'post',
+        contentType:'application/json',
+        dataType:'json',
+        toolbar:'#toolbar',
+        pagination: true,
+        sortOrder: "asc",
+        sidePagination: "client",
+        pageNumber: 1,
+        pageSize: 20,
+        pageList: [10, 20],
+        clickToSelect: false,
+        search:true,
+        singleSelect:true,
+        detailview:true,
+    });
    $('#add').click(function () {
        var u = "/salt/"+$(this).attr("id");
         location.href = "/salt/website/"+$(this).attr("id");

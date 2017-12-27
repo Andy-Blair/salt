@@ -4,7 +4,12 @@
 $(function () {
     $('#website_list').bootstrapTable({
         columns:[
-            {checkbox: true},
+            {checkbox: true,formatter:function (value, row, index) {
+                if (row['init_result'] === 0){
+                    return {disabled: true}
+                };
+                return value
+            }},
             {field: 'id', title: 'ID', align:'center', valign:'middle', visible:false},
             {field: 'website_name', title: '站点名称', width:'',  align:'center', valign:'middle'},
             {field: 'website_url', title: '站点域名', width:'',  align:'center', valign:'middle'},
@@ -15,7 +20,7 @@ $(function () {
                 var u = "/salt/website/"+row.id+"/d";
                 return '<a href='+u+'>详细信息</a>';
             }},
-
+            {field: 'init_result', title: 'init_result', align:'center', valign:'middle',visible:false},
         ],
         url: '/salt/website_list/',
         method: 'post',
@@ -28,15 +33,47 @@ $(function () {
         pageNumber: 1,
         pageSize: 20,
         pageList: [10, 20],
-        clickToSelect: true,
+        clickToSelect: false,
         search:true,
         singleSelect:true,
         detailview:true,
     });
-    $('#web_update,#web_rollback').click(function () {
+    $('#web_update').click(function () {
         var row_data=$('#website_list').bootstrapTable('getSelections');
         if (Object.keys(row_data).length!==0){
-            window.open("/salt/website/"+$(this).attr('name')+'/'+row_data[0]['id'])
+            window.open("/salt/website/"+$(this).attr('name')+'/?web_id='+row_data[0]['id'])
         }
     });
+    $('#rollback').click(function () {
+        var row_data=$('#website_list').bootstrapTable('getSelections');
+        if (Object.keys(row_data).length!==0){
+            $.get("/salt/website/tag/",{web_id:row_data[0]['id']},function (data) {
+                var tag = $('#tag');
+                tag.empty();
+                tag.append(data)
+            });
+            $('#modal-container-576146').modal('toggle');
+            $('#tag').change(function () {
+                var tag_name=$(this).children('option:selected').text();
+                if (tag_name === "请选择"){
+                    $('#com_message').empty()
+                }else {
+                    $.post("/salt/website/tag/",{tag_name:tag_name,web_id:row_data[0]['id']},function (data) {
+                    $('#com_message').text(data)
+                    })
+                }
+
+            });
+        }
+    });
+    $('#roll_back').click(function () {
+        // $('#tag_form').submit()
+        var tag_name=$('#tag').children('option:selected').text();
+        if (tag_name === "请选择"){
+            alert("请选择要回退到哪个Tag")
+        }else {
+            var row_data=$('#website_list').bootstrapTable('getSelections');
+            window.open("/salt/website/"+$(this).attr('name')+"?web_id="+row_data[0]['id']+"&tag_name="+tag_name)
+        }
+    })
 });

@@ -14,6 +14,7 @@ class Servers(models.Model):
     ostype = models.CharField(max_length=50)
     describe = models.CharField(max_length=200)
     group = models.ForeignKey(Group)
+    init_result = models.IntegerField(default=0)  # 0-not init,1-init success,2-init fail
 
     def __unicode__(self):
         return self.ipaddress
@@ -42,3 +43,17 @@ class Services(models.Model):
 
     def __unicode__(self):
         return self.name
+
+
+class Commit(models.Model):
+    # commit information
+    com_id = models.AutoField(primary_key=True)
+    tag_name = models.CharField(max_length=50)
+    commit_id = models.CharField(max_length=100)
+    author = models.CharField(max_length=50)
+    date = models.CharField(max_length=50)
+    message = models.CharField(max_length=10000)
+    website_id = models.ForeignKey(Website)
+
+    def __unicode__(self):
+        return self.tag_name
