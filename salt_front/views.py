@@ -13,6 +13,9 @@ from dwebsocket import accept_websocket
 import os
 import subprocess
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 login_url = "/salt/login/"
@@ -78,111 +81,130 @@ def detail_socket(request,operate):
             request.websocket.send("错误的操作")
         else:
             for soc_m in request.websocket:
-                operate = operate
-                web_info = Website.objects.get(website_id=web_id)
-                web_url = web_info.url
-                apptype = web_info.type
-                sls_name = web_url.replace(".","_")
-                re_tomcat = False
-                web_servers_info = web_info.server_id.values()
-                web_server_ip = []
-                for i in range(len(web_servers_info)):
-                    web_server_ip.append(web_servers_info[i]["ipaddress"])
-                cli = client.LocalClient()
-                request.websocket.send("正在更新......\n\n")
-                for i in web_server_ip:
-                    request.websocket.send(i.strip().encode('utf8') +":\n")
-                    if operate == "update":
-                        sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_update' % (sls_name, sls_name)])
-                    else:
-                        commit = Commit.objects.get(tag_name=tag_name)
-                        commit_id = commit.commit_id
-                        file_path = "/srv/salt/pkg/script/web_git/%s/%s_rollback.sls" % (sls_name, sls_name)
-                        f = open(file_path,'r')
-                        lines = f.readlines()
-                        f.close()
-                        for line in range(len(lines)):
-                            if "name" in lines[line]:
-                                if apptype == "IIS":
-                                    lines[line] = "    - name: python d:/product/web_git/%s.py rollback %s\n" % (sls_name,commit_id)
-                                else:
-                                    lines[line] = "    - name: python /apps/product/web_git/%s.py rollback %s\n" % (sls_name, commit_id)
-                                break
-                        new_f = open(file_path,'w')
-                        new_f.writelines(lines)
-                        new_f.close()
-                        sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_rollback' % (sls_name, sls_name)])
-                    def get_dval(dic,key):
-                        # get change files
-                        for k, v in dic.items():
-                            if k == key:
-                                return v
-                            else:
-                                if isinstance(v, dict):
-                                    return get_dval(v,key)
-                    print sync_re
-                    result = get_dval(sync_re,"result")
-                    if result:
-                        stdout = get_dval(sync_re,"stdout")
-                        request.websocket.send("  " + stdout + "\n")
-                        request.websocket.send("------更新完成！------\n\n")
-                        re_tomcat = True
-                        all_message = stdout.split("\n")
-                        commit_id = "-"
-                        author = "-"
-                        date = "-"
-                        message = all_message[4:]
-                        tag_name = "-"
-                        for m in message:
-                            if "Tag:" in m:
-                                tag_name = m.split(":")[1].strip()
-                        for all_m in all_message:
-                            if all_m.startswith("commit"):
-                                commit_id = all_m.split()[1]
-                            elif all_m.startswith("Author"):
-                                author = all_m.split(":")[1].strip()
-                            elif all_m.startswith("Date"):
-                                date = all_m.split("e:")[1].strip()
+                try:
+                    operate = operate
+                    web_info = Website.objects.get(website_id=web_id)
+                    web_url = web_info.url
+                    apptype = web_info.type
+                    sls_name = web_url.replace(".","_")
+                    re_tomcat = False
+                    web_servers_info = web_info.server_id.values()
+                    web_server_ip = []
+                    for i in range(len(web_servers_info)):
+                        web_server_ip.append(web_servers_info[i]["ipaddress"])
+                    cli = client.LocalClient()
+                    request.websocket.send("正在更新......\n\n")
+                    for i in web_server_ip:
+                        request.websocket.send(i.strip().encode('utf8') +":\n")
                         if operate == "update":
-                            try:
-                                Commit.objects.get(tag_name=tag_name,website_id=web_id)
-                            except Exception:
-                                website = Website.objects.get(website_id=web_id)
-                                com = Commit(tag_name=tag_name,commit_id=commit_id,author=author,date=date,message="\n".join(message),website_id=website)
-                                com.save()
-                    else:
-                        stderr = get_dval(sync_re,"stderr")
-                        comment = get_dval(sync_re,"comment")
-                        request.websocket.send("错误信息：\n")
-                        request.websocket.send("  " + comment + "\n")
-                        request.websocket.send("  " + stderr + "\n")
+                            sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_update' % (sls_name, sls_name)])
+                        else:
+                            commit = Commit.objects.get(tag_name=tag_name,website_id=web_id)
+                            commit_id = commit.commit_id
+                            file_path = "/srv/salt/pkg/script/web_git/%s/%s_rollback.sls" % (sls_name, sls_name)
+                            f = open(file_path,'r')
+                            lines = f.readlines()
+                            f.close()
+                            for line in range(len(lines)):
+                                if "name" in lines[line]:
+                                    if apptype == "IIS":
+                                        lines[line] = "    - name: python d:/product/web_git/%s.py rollback %s\n" % (sls_name,commit_id)
+                                    else:
+                                        lines[line] = "    - name: python /apps/product/web_git/%s.py rollback %s\n" % (sls_name, commit_id)
+                                    break
+                            new_f = open(file_path,'w')
+                            new_f.writelines(lines)
+                            new_f.close()
+                            sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_rollback' % (sls_name, sls_name)])
+                        def get_dval(dic,key):
+                            # get change files
+                            for k, v in dic.items():
+                                if k == key:
+                                    return v
+                                else:
+                                    if isinstance(v, dict):
+                                        return get_dval(v,key)
+                        logger.info(sync_re)
+                        result = get_dval(sync_re,"result")
+                        if result:
+                            stdout = get_dval(sync_re,"stdout")
+                            re_tomcat = True
+                            all_message = stdout.split("\n")
+                            commit_id = "-"
+                            author = "-"
+                            date = "-"
+                            message = all_message[4:]
+                            tag_name = "-"
+                            for m in message:
+                                if "Tag:" in m:
+                                    tag_name = m.split(":")[1].strip()
+                            for all_m in all_message:
+                                if all_m.startswith("commit"):
+                                    commit_id = all_m.split()[1]
+                                elif all_m.startswith("Author"):
+                                    author = all_m.split(":")[1].strip()
+                                elif all_m.startswith("Date"):
+                                    date = all_m.split("e:")[1].strip()
+                            if operate == "update":
+                                try:
+                                    Commit.objects.get(tag_name=tag_name,website_id=web_id)
+                                except Exception:
+                                    website = Website.objects.get(website_id=web_id)
+                                    com = Commit(tag_name=tag_name,commit_id=commit_id,author=author,date=date,message="\n".join(message),website_id=website)
+                                    com.save()
+                            request.websocket.send("  " + stdout + "\n")
+                            request.websocket.send("------更新完成！------\n\n")
+                        else:
+                            stderr = get_dval(sync_re,"stderr")
+                            comment = get_dval(sync_re,"comment")
+                            request.websocket.send("错误信息：\n")
+                            request.websocket.send("  " + comment + "\n")
+                            request.websocket.send("  " + stderr + "\n")
 
-                    # --- Read Tomcat Log. start ---
-                    if web_info.type.lower() == "tomcat" and re_tomcat:
-                        # 配置远程服务器的IP，帐号，密码，端口等，因做了双机密钥信任，所以不需要密码
-                        r_user = "app"
-                        r_ip = i.strip()
-                        r_port = 22
-                        r_log = "/apps/product/tomcat/logs/catalina.out"  # tomcat的启动日志路径
-                        cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f {log_path}".format(user=r_user, ip=r_ip, port=r_port, log_path=r_log)
-                        cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
-                        p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                        tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
-                        request.websocket.send("Tomcat has stopped\n\n")
-                        p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                        while p_start.poll() == None:
-                            start_l = p_start.stdout.readline()
-                            request.websocket.send(start_l)
-
-                        while p_rlog.poll() == None:
-                            re_log = p_rlog.stdout.readline()
-                            request.websocket.send(re_log)
-                            if "Server startup in" in re_log:
+                        # --- Read Tomcat Log. start ---
+                        if web_info.type.lower() == "tomcat" and re_tomcat:
+                            # 配置远程服务器的IP，帐号，密码，端口等，因做了双机密钥信任，所以不需要密码
+                            r_user = "app"
+                            r_ip = i.strip()
+                            r_port = 22
+                            r_log = "/apps/product/tomcat/logs/catalina.out"  # tomcat的启动日志路径
+                            cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f {log_path}".format(user=r_user, ip=r_ip, port=r_port, log_path=r_log)
+                            cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
+                            p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                            tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
+                            logger.info(tom_stop_re)
+                            tom_stop_result = get_dval(tom_stop_re,'stdout')
+                            tom_stop_false = False
+                            if tom_stop_result is not None:
+                                if len(tom_stop_result) != 0:
+                                    request.websocket.send(tom_stop_result+"\n\n")
+                                else:
+                                    tom_stop_false = True
+                            else:
+                                tom_stop_false = True
+                            if tom_stop_false:
+                                request.websocket.send("Error: can't stop Tomcat")
+                                kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
+                                logger.info(kill_tail_re)
                                 break
-                        kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
+                            p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                            while p_start.poll() == None:
+                                start_l = p_start.stdout.readline()
+                                request.websocket.send(start_l)
 
-                    # --- Read Tomcat Log. end ---
-                break
+                            while p_rlog.poll() == None:
+                                re_log = p_rlog.stdout.readline()
+                                request.websocket.send(re_log)
+                                if "Server startup in" in re_log:
+                                    break
+                            kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
+                            logger.info(kill_tail_re)
+
+                        # --- Read Tomcat Log. end ---
+                    break
+                except Exception:
+                    request.websocket.send("更新失败,请联系管理员!")
+                    raise
         request.websocket.close()
 
 
@@ -306,7 +328,7 @@ def create_pro_file(request):
     top_sls.close()
     for ip in rec_data['serverip'].split(','):
         sync_re = cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.script.web_git.%s.%s" % (pyscript_name, pyscript_name)])
-        print sync_re
+        logger.info(sync_re)
         result = get_dval(sync_re,"result")
         if result:
             web = Website.objects.get(name=rec_data['web_name'])
@@ -468,7 +490,6 @@ def server_manage(request):
             if exsit:
                 continue
             else:
-                print "no exsit"
                 server = Servers(ipaddress=k,ostype=v['os'],group=Group.objects.get(name="超级管理员"))
                 server.save()
         return HttpResponse()

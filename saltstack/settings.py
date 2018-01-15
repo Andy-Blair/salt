@@ -127,7 +127,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Shanghai'
+# TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
@@ -144,52 +145,106 @@ STATICFILES_DIRS = [
   os.path.join(BASE_DIR, "static"),
   ]
 
+WEBSOCKET_FACTORY_CLASS = 'dwebsocket.backends.uwsgi.factory.uWsgiWebSocketFactory'
+
 LOGGING = {
- 'version': 1,
- 'disable_existing_loggers': True,
- 'formatters': {#日志格式
- 'standard': {
-  'format': '%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s'}
- },
- 'filters': {#过滤器
- 'require_debug_false': {
-  '()': 'django.utils.log.RequireDebugFalse',
-  }
- },
- 'handlers': {#处理器
- 'null': {
-  'level': 'DEBUG',
-  'class': 'logging.NullHandler',
- },
- 'debug': {#记录到日志文件(需要创建对应的目录，否则会出错)
-  'level':'ERROR',
-  'class':'logging.handlers.RotatingFileHandler',
-  'filename': '/var/log/django.log',#日志输出文件
-  'maxBytes':1024*1024*5,#文件大小
-  'backupCount': 5,#备份份数
-  'formatter':'standard',#使用哪种formatters日志格式
- },
- 'console':{#输出到控制台
-  'level': 'INFO',
-  'class': 'logging.StreamHandler',
-  'formatter': 'standard',
- },
- },
- 'loggers': {#logging管理器
- 'django': {
-  'handlers': ['debug'],
-  'level': 'DEBUG',
-  'propagate': False
- },
- 'django.request': {
-  'handlers': ['debug'],
-  'level': 'DEBUG',
-  'propagate': True,
- },
- # 对于不在 ALLOWED_HOSTS 中的请求不发送报错邮件
- 'django.security.DisallowedHost': {
-  'handlers': ['null'],
-  'propagate': False,
- },
- }
+     'version': 1,
+     'disable_existing_loggers': True,  # 禁用所有的已经存在的日志配置
+     'formatters': {
+         # 日志格式
+         'detailed': {
+             'format': '%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s'
+         },
+         'standard': {
+             'format': '%(asctime)s [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s'
+         }
+     },
+     'filters': {
+         # 过滤器
+         'require_debug_false': {
+             '()': 'django.utils.log.RequireDebugFalse',
+         }
+     },
+     'handlers': {
+         # 处理器
+         'null': {
+             'level': 'DEBUG',
+             'class': 'logging.NullHandler',
+         },
+         'default': {
+             # 记录到日志文件(需要创建对应的目录，否则会出错)
+             # 'level': 'ERROR',
+             'level': 'DEBUG',
+             'class': 'logging.handlers.RotatingFileHandler',
+             'filename': '/apps/product/log/django.log',  # 日志输出文件
+             'maxBytes': 1024*1024*5,  # 文件大小
+             'backupCount': 5,  # 备份份数
+             'formatter': 'standard',  # 使用哪种formatters日志格式
+         },
+         'info': {
+             # 记录到日志文件(需要创建对应的目录，否则会出错)
+             'level': 'INFO',
+             'class': 'logging.handlers.RotatingFileHandler',
+             'filename': '/apps/product/log/django_info.log',  # 日志输出文件
+             'maxBytes': 1024 * 1024 * 5,  # 文件大小
+             'backupCount': 5,  # 备份份数
+             'formatter': 'standard',  # 使用哪种formatters日志格式
+         },
+         'error': {
+             # 记录到日志文件(需要创建对应的目录，否则会出错)
+             'level': 'ERROR',
+             'class': 'logging.handlers.RotatingFileHandler',
+             'filename': '/apps/product/log/django_error.log',  # 日志输出文件
+             'maxBytes': 1024 * 1024 * 5,  # 文件大小
+             'backupCount': 5,  # 备份份数
+             'formatter': 'standard',  # 使用哪种formatters日志格式
+         },
+         'request_handlers': {
+             # 记录到日志文件(需要创建对应的目录，否则会出错)
+             'level': 'DEBUG',
+             'class': 'logging.handlers.RotatingFileHandler',
+             'filename': '/apps/product/log/django_request.log',  # 日志输出文件
+             'maxBytes': 1024 * 1024 * 5,  # 文件大小
+             'backupCount': 5,  # 备份份数
+             'formatter': 'standard',  # 使用哪种formatters日志格式
+         },
+         'console':{
+             # 输出到控制台
+             'level': 'DEBUG',
+             'class': 'logging.StreamHandler',
+             'formatter': 'standard',
+         },
+         'salt_front_handlers': {
+             # 记录到日志文件(需要创建对应的目录，否则会出错)
+             'level': 'DEBUG',
+             'class': 'logging.handlers.RotatingFileHandler',
+             'filename': '/apps/product/log/django_saltstack.log',  # 日志输出文件
+             'maxBytes': 1024 * 1024 * 5,  # 文件大小
+             'backupCount': 5,  # 备份份数
+             'formatter': 'standard',  # 使用哪种formatters日志格式
+         },
+     },
+     'loggers': {
+         # logging管理器
+         'django': {
+              'handlers': ['error'],
+              'level': 'DEBUG',
+              'propagate': False
+         },
+         'django.request': {
+              'handlers': ['request_handlers'],
+              'level': 'DEBUG',
+              'propagate': True,
+         },
+         # 对于不在 ALLOWED_HOSTS 中的请求不发送报错邮件
+         'django.security.DisallowedHost': {
+              'handlers': ['null'],
+              'propagate': False,
+         },
+         'salt_front': {
+              'handlers': ['salt_front_handlers'],
+              'level': 'DEBUG',
+              'propagate': True,
+         },
+     }
 }
