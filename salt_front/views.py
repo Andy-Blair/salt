@@ -255,7 +255,7 @@ def create_pro_file(request):
             if k == key:
                 return v
             else:
-                if isinstance(v, dict):
+                if isinstance(v, dict) and len(v) > 0:
                     return get_dval(v, key)
 
     rec_data = request.POST
