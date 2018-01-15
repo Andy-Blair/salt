@@ -262,7 +262,7 @@ def create_pro_file(request):
     count = 0
     has_web = False
     while count < 5:
-        exsit_web = Website.objects.filter(url=rec_data["url"])
+        exsit_web = Website.objects.filter(url=rec_data["web_url"])
         if exsit_web:
             has_web = True
             break
@@ -341,7 +341,7 @@ def create_pro_file(request):
             logger.info(sync_re)
             result = get_dval(sync_re,"result")
             if result:
-                web = Website.objects.get(name=rec_data['web_name'])
+                web = Website.objects.get(url=rec_data['web_url'])
                 web.init_result = 1
                 web.save()
     return HttpResponse()
