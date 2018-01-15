@@ -12,7 +12,7 @@ import git_checkout
 from dwebsocket import accept_websocket
 import os
 import subprocess
-import sys
+import time
 import logging
 
 logger = logging.getLogger(__name__)
@@ -259,82 +259,91 @@ def create_pro_file(request):
                     return get_dval(v, key)
 
     rec_data = request.POST
-    cli = client.LocalClient()
-    git_pyscript = "/srv/salt/pkg/script/git_update.py"
-    py_content = open(git_pyscript, 'r')
-    py_lines = py_content.readlines()
-    py_content.close()
-    py_flen = len(py_lines)
-    for num in range(py_flen):
-        if py_lines[num].strip() == 'git_url = ""':
-            py_lines[num] = py_lines[num].replace(py_lines[num], "git_url = '%s'" % rec_data['web_git_url'] + "\n")
-        elif py_lines[num].strip() == 'git_path = ""':
-            if rec_data['apptype'] == "IIS":
-                py_lines[num] = py_lines[num].replace(py_lines[num],"git_path = '%s'" % rec_data['web_path'].replace('\\','\\\\') + "\n")
-            else:
-                py_lines[num] = py_lines[num].replace(py_lines[num], "git_path = '%s'" % rec_data['web_path'] + "\n")
-    pyscript_name = rec_data['web_url'].replace(".", "_")
-    web_scr_dir = "/srv/salt/pkg/script/web_git/%s" % pyscript_name
-    if not os.path.exists(web_scr_dir + "/"):
-        if os.path.exists(web_scr_dir):
-            os.remove(web_scr_dir)
-        os.mkdir(web_scr_dir + "/")
-    new_py = open("/srv/salt/pkg/script/web_git/%s/%s.py" % (pyscript_name, pyscript_name), "w")
-    new_py.writelines(py_lines)
-    new_py.close()
-    push_slsmode = "/srv/salt/pkg/script/git_update.sls"
-    sls_content = open(push_slsmode, 'r')
-    sls_lines = sls_content.readlines()
-    sls_content.close()
-    sls_flen = len(sls_lines)
-    for num in range(sls_flen):
-        if "- source:" in sls_lines[num]:
-            if rec_data['apptype'] == "IIS":
-                sls_lines[num - 1] = "    " + sls_lines[num - 1].strip() + " d:/product/web_git/%s.py\n" % pyscript_name
-            else:
-                sls_lines[num - 1] = "    " + sls_lines[num - 1].strip() + " /apps/product/web_git/%s.py\n" % pyscript_name
-            sls_lines[num] = "    " + sls_lines[num].strip() + "%s/%s.py\n" % (pyscript_name, pyscript_name)
-    new_sls = open("/srv/salt/pkg/script/web_git/%s/%s.sls" % (pyscript_name, pyscript_name), "w")
-    new_sls.writelines(sls_lines)
-    new_sls.close()
-    git_run_script = "/srv/salt/pkg/script/git_update_run.sls"
-    sls_git_content = open(git_run_script, 'r')
-    sls_git_lines = sls_git_content.readlines()
-    sls_git_content.close()
-    sls_git_flen = len(sls_git_lines)
-    for num in range(sls_git_flen):
-        if "- name:" in sls_git_lines[num]:
-            if rec_data['apptype'] == "IIS":
-                sls_git_lines[num] = "    " + sls_git_lines[
-                    num].strip() + " d:/product/web_git/%s.py update\n" % pyscript_name
-            else:
-                sls_git_lines[num] = "    " + sls_git_lines[
-                    num].strip() + " /apps/product/web_git/%s.py update\n" % pyscript_name
-                sls_git_lines.append("    - user: app")
-    update_git_sls = open("/srv/salt/pkg/script/web_git/%s/%s_update.sls" % (pyscript_name, pyscript_name), "w")
-    update_git_sls.writelines(sls_git_lines)
-    update_git_sls.close()
-    rollback_git_sls = open("/srv/salt/pkg/script/web_git/%s/%s_rollback.sls" % (pyscript_name, pyscript_name), "w")
-    rollback_git_sls.writelines(sls_git_lines)
-    rollback_git_sls.close()
-    top_sls = open("/srv/salt/top.sls", "a+")
-    top_data = ["    - pkg.script.web_git.%s.%s\n" % (pyscript_name, pyscript_name),
-                "    - pkg.script.web_git.%s.%s_update\n" % (pyscript_name, pyscript_name),
-                "    - pkg.script.web_git.%s.%s_rollback\n" % (pyscript_name, pyscript_name)]
-    top_sls_lines = top_sls.readlines()
-    for top_item in top_data:
-        if top_item not in top_sls_lines:
-            top_sls.write(top_item)
-    top_sls.close()
-    for ip in rec_data['serverip'].split(','):
-        sync_re = cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.script.web_git.%s.%s" % (pyscript_name, pyscript_name)])
-        logger.info(sync_re)
-        result = get_dval(sync_re,"result")
-        if result:
-            web = Website.objects.get(name=rec_data['web_name'])
-            web.init_result = 1
-            web.save()
-
+    count = 0
+    has_web = False
+    while count < 5:
+        exsit_web = Website.objects.filter(url=rec_data["url"])
+        if exsit_web:
+            has_web = True
+            break
+        count += 1
+        time.sleep(1)
+    if has_web:
+        cli = client.LocalClient()
+        git_pyscript = "/srv/salt/pkg/script/git_update.py"
+        py_content = open(git_pyscript, 'r')
+        py_lines = py_content.readlines()
+        py_content.close()
+        py_flen = len(py_lines)
+        for num in range(py_flen):
+            if py_lines[num].strip() == 'git_url = ""':
+                py_lines[num] = py_lines[num].replace(py_lines[num], "git_url = '%s'" % rec_data['web_git_url'] + "\n")
+            elif py_lines[num].strip() == 'git_path = ""':
+                if rec_data['apptype'] == "IIS":
+                    py_lines[num] = py_lines[num].replace(py_lines[num],"git_path = '%s'" % rec_data['web_path'].replace('\\','\\\\') + "\n")
+                else:
+                    py_lines[num] = py_lines[num].replace(py_lines[num], "git_path = '%s'" % rec_data['web_path'] + "\n")
+        pyscript_name = rec_data['web_url'].replace(".", "_")
+        web_scr_dir = "/srv/salt/pkg/script/web_git/%s" % pyscript_name
+        if not os.path.exists(web_scr_dir + "/"):
+            if os.path.exists(web_scr_dir):
+                os.remove(web_scr_dir)
+            os.mkdir(web_scr_dir + "/")
+        new_py = open("/srv/salt/pkg/script/web_git/%s/%s.py" % (pyscript_name, pyscript_name), "w")
+        new_py.writelines(py_lines)
+        new_py.close()
+        push_slsmode = "/srv/salt/pkg/script/git_update.sls"
+        sls_content = open(push_slsmode, 'r')
+        sls_lines = sls_content.readlines()
+        sls_content.close()
+        sls_flen = len(sls_lines)
+        for num in range(sls_flen):
+            if "- source:" in sls_lines[num]:
+                if rec_data['apptype'] == "IIS":
+                    sls_lines[num - 1] = "    " + sls_lines[num - 1].strip() + " d:/product/web_git/%s.py\n" % pyscript_name
+                else:
+                    sls_lines[num - 1] = "    " + sls_lines[num - 1].strip() + " /apps/product/web_git/%s.py\n" % pyscript_name
+                sls_lines[num] = "    " + sls_lines[num].strip() + "%s/%s.py\n" % (pyscript_name, pyscript_name)
+        new_sls = open("/srv/salt/pkg/script/web_git/%s/%s.sls" % (pyscript_name, pyscript_name), "w")
+        new_sls.writelines(sls_lines)
+        new_sls.close()
+        git_run_script = "/srv/salt/pkg/script/git_update_run.sls"
+        sls_git_content = open(git_run_script, 'r')
+        sls_git_lines = sls_git_content.readlines()
+        sls_git_content.close()
+        sls_git_flen = len(sls_git_lines)
+        for num in range(sls_git_flen):
+            if "- name:" in sls_git_lines[num]:
+                if rec_data['apptype'] == "IIS":
+                    sls_git_lines[num] = "    " + sls_git_lines[
+                        num].strip() + " d:/product/web_git/%s.py update\n" % pyscript_name
+                else:
+                    sls_git_lines[num] = "    " + sls_git_lines[
+                        num].strip() + " /apps/product/web_git/%s.py update\n" % pyscript_name
+                    sls_git_lines.append("    - user: app")
+        update_git_sls = open("/srv/salt/pkg/script/web_git/%s/%s_update.sls" % (pyscript_name, pyscript_name), "w")
+        update_git_sls.writelines(sls_git_lines)
+        update_git_sls.close()
+        rollback_git_sls = open("/srv/salt/pkg/script/web_git/%s/%s_rollback.sls" % (pyscript_name, pyscript_name), "w")
+        rollback_git_sls.writelines(sls_git_lines)
+        rollback_git_sls.close()
+        top_sls = open("/srv/salt/top.sls", "a+")
+        top_data = ["    - pkg.script.web_git.%s.%s\n" % (pyscript_name, pyscript_name),
+                    "    - pkg.script.web_git.%s.%s_update\n" % (pyscript_name, pyscript_name),
+                    "    - pkg.script.web_git.%s.%s_rollback\n" % (pyscript_name, pyscript_name)]
+        top_sls_lines = top_sls.readlines()
+        for top_item in top_data:
+            if top_item not in top_sls_lines:
+                top_sls.write(top_item)
+        top_sls.close()
+        for ip in rec_data['serverip'].split(','):
+            sync_re = cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.script.web_git.%s.%s" % (pyscript_name, pyscript_name)])
+            logger.info(sync_re)
+            result = get_dval(sync_re,"result")
+            if result:
+                web = Website.objects.get(name=rec_data['web_name'])
+                web.init_result = 1
+                web.save()
     return HttpResponse()
 
 
@@ -451,12 +460,12 @@ def wesite_list(request):
                 d['website_url'] = web.url
                 d['website_type'] = web.type
                 init_fail = False
-                init_result = i.init_result
+                init_result = web.init_result
                 if init_result == 0:
-                    d['website_url'] = i.url + '...<font color="#FF0000">not init</font>'
+                    d['website_url'] = web.url + '...<font color="#FF0000">not init</font>'
                     init_fail = True
                 else:
-                    d['website_url'] = i.url
+                    d['website_url'] = web.url
                 if init_fail:
                     d['init_result'] = 0
                 else:
