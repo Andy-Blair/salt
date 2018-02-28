@@ -52,7 +52,7 @@ def website(request):
 def website_tag(request):
     if request.method == "GET":
         web_id = request.GET["web_id"]
-        commit = Commit.objects.filter(website_id=web_id)
+        commit = Commit.objects.filter(website_id=web_id).order_by('-com_id')
         tag_list = "<option>请选择</option>\n".decode('utf8')
         for comm in commit:
             tag_list = tag_list + "<option>%s</option>\n".decode('utf8') % comm.tag_name

@@ -113,6 +113,12 @@ $("#webform").submit(function () {
         return false;
     }
     var web_url = $("#web_url").val();
+    var re_web_url1=/\S*\\+\S*/;
+    var re_web_url2=/\S*\/+\S*/;
+    if(re_web_url1.test(web_url) || re_web_url2.test(web_url)){
+        alert('域名不能包含 "/" "\\" 字符');
+        return false
+    }
     var exsit_web_name = website_auth(web_url);
     if(exsit_web_name["responseText"] === "exsit"){
         alert(web_url+"  already exsit");
