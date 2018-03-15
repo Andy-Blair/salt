@@ -98,6 +98,7 @@ def detail_socket(request,operate):
                         request.websocket.send(i.strip().encode('utf8') +":\n")
                         if operate == "update":
                             sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_update' % (sls_name, sls_name)])
+                            logger.info("update_result %s" % sync_re)
                         else:
                             commit = Commit.objects.get(tag_name=tag_name,website_id=web_id)
                             commit_id = commit.commit_id
@@ -116,6 +117,7 @@ def detail_socket(request,operate):
                             new_f.writelines(lines)
                             new_f.close()
                             sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_rollback' % (sls_name, sls_name)])
+                            logger.info("rollback_result %s" % sync_re)
                         def get_dval(dic,key):
                             # get change files
                             for k, v in dic.items():
@@ -124,7 +126,6 @@ def detail_socket(request,operate):
                                 else:
                                     if isinstance(v, dict):
                                         return get_dval(v,key)
-                        logger.info(sync_re)
                         result = get_dval(sync_re,"result")
                         if result:
                             stdout = get_dval(sync_re,"stdout")
@@ -172,7 +173,7 @@ def detail_socket(request,operate):
                             cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
                             p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                             tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
-                            logger.info(tom_stop_re)
+                            logger.info("tomcat_stop_result %s" % tom_stop_re)
                             tom_stop_result = get_dval(tom_stop_re,'stdout')
                             tom_stop_false = False
                             if tom_stop_result is not None:
@@ -198,7 +199,7 @@ def detail_socket(request,operate):
                                 if "Server startup in" in re_log:
                                     break
                             kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
-                            logger.info(kill_tail_re)
+                            logger.info("kill_tail_result %s " % kill_tail_re)
 
                         # --- Read Tomcat Log. end ---
                     break
@@ -283,6 +284,16 @@ def create_pro_file(request):
                     py_lines[num] = py_lines[num].replace(py_lines[num],"git_path = '%s'" % rec_data['web_path'].replace('\\','\\\\') + "\n")
                 else:
                     py_lines[num] = py_lines[num].replace(py_lines[num], "git_path = '%s'" % rec_data['web_path'] + "\n")
+            if py_lines[num].startswith("used_branch"):
+                if rec_data['deploy_env'] == "online":
+                    py_lines[num] = 'used_branch = "online_deploy"\n'
+                else:
+                    py_lines[num] = 'used_branch = "sandbox_deploy"\n'
+            if py_lines[num].startswith("remote_repo_name"):
+                if rec_data['deploy_env'] == "online":
+                    py_lines[num] = 'remote_repo_name = "online"\n'
+                else:
+                    py_lines[num] = 'remote_repo_name = "sanbox"\n'
         pyscript_name = rec_data['web_url'].replace(".", "_")
         web_scr_dir = "/srv/salt/pkg/script/web_git/%s" % pyscript_name
         if not os.path.exists(web_scr_dir + "/"):
@@ -338,7 +349,7 @@ def create_pro_file(request):
         top_sls.close()
         for ip in rec_data['serverip'].split(','):
             sync_re = cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.script.web_git.%s.%s" % (pyscript_name, pyscript_name)])
-            logger.info(sync_re)
+            logger.info("create_project_script_result %s" % sync_re)
             result = get_dval(sync_re,"result")
             if result:
                 web = Website.objects.get(url=rec_data['web_url'])
@@ -436,6 +447,7 @@ def wesite_list(request):
                 else:
                     d['init_result'] = 1
                 d['website_type'] = i.type
+                d['website_env'] = i.deploy_env
                 server = i.server_id.values()
                 ips = []
                 for item in range(len(server)):
@@ -459,6 +471,7 @@ def wesite_list(request):
                 d['website_name'] = web.name
                 d['website_url'] = web.url
                 d['website_type'] = web.type
+                d['website_env'] = i.deploy_env
                 init_fail = False
                 init_result = web.init_result
                 if init_result == 0:

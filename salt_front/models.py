@@ -26,6 +26,7 @@ class Website(models.Model):
     url = models.URLField()
     path = models.CharField(max_length=100)
     type = models.CharField(max_length=50)
+    deploy_env = models.CharField(max_length=50)
     git_url = models.CharField(max_length=100,default="-")
     server_id = models.ManyToManyField(Servers)
     init_result = models.IntegerField(default=0)  # 0-not init,1-init success,2-init fail
@@ -48,10 +49,11 @@ class Services(models.Model):
 class Commit(models.Model):
     # commit information
     com_id = models.AutoField(primary_key=True)
+    update_date = models.DateTimeField(auto_now_add=True)
     tag_name = models.CharField(max_length=50)
     commit_id = models.CharField(max_length=100)
     author = models.CharField(max_length=50)
-    date = models.CharField(max_length=50)
+    commit_date = models.CharField(max_length=50)
     message = models.CharField(max_length=500)
     website_id = models.ForeignKey(Website)
 

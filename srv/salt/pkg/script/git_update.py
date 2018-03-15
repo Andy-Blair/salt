@@ -4,6 +4,8 @@
 import shutil
 import os
 import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 if sys.platform == 'win32':
     os.environ["PATH"] = os.environ["PATH"] + "C:\\Program Files\\Git\\cmd;"
@@ -67,8 +69,11 @@ else:
     if operator =="rollback":
         g.reset("--hard", commit_id)
     else:
-        g.pull(remote_repo_name, used_branch)
-        g.reset("--hard","%s/%s" % (remote_repo_name,used_branch))
+        try:
+            g.pull(remote_repo_name, used_branch)
+        except Exception:
+            g.reset("--hard","%s/%s" % (remote_repo_name,used_branch))
+            g.pull(remote_repo_name, used_branch)
 if sys.platform == 'win32':
     os.popen("icacls %s /setowner app /T /C /L" % git_path)
     os.popen("icacls %s /inheritance:e /T /C /L" % git_path)
