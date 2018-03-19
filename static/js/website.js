@@ -15,7 +15,7 @@ $(function () {
             {field: 'website_url', title: '站点域名', width:'',  align:'center', valign:'middle'},
             {field: 'website_type', title: '应用类型', width:'',  align:'center', valign:'middle'},
             {field: 'website_server', title: '服务器', width:'',  align:'center', valign:'middle'},
-            {field: 'website_ostype', title: '系统类型', width:'',  align:'center', valign:'middle'},
+            {field: 'website_env', title: '部署环境', width:'',  align:'center', valign:'middle'},
             {field: 'website_detail', title: '', width:'',  align:'center', valign:'middle', formatter:function (value, row, index) {
                 var u = "/salt/website/"+row.id+"/d";
                 return '<a href='+u+'>详细信息</a>';
