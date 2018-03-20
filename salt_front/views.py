@@ -240,7 +240,7 @@ def website_add(request):
     elif request.method == "POST":
         rec_data = request.POST
         web = Website(name=rec_data['web_name'],url=rec_data['web_url'],path=rec_data['web_path'],
-                      type=rec_data['apptype'],git_url=rec_data['web_git_url'])
+                      type=rec_data['apptype'],git_url=rec_data['web_git_url'],deploy_env=rec_data['deploy_env'])
         web.save()
         for ip in rec_data['serverip'].split(','):
             web.server_id.add(Servers.objects.get(ipaddress=ip))
@@ -371,7 +371,9 @@ def website_modify(request,web_id):
         return render_to_response('website_modify.html', {'webinfo':webinfo, 'serverip':serverip, 'login_user':login_user})
     elif request.method == "POST":
         rec_data = request.POST
-        if rec_data['web_name'] == webinfo.name and rec_data['web_url'] == webinfo.url and rec_data['web_path'] == webinfo.path and rec_data['apptype'] == webinfo.type and rec_data['web_git_url'] == webinfo.git_url and rec_data['serverip'] == serverip:
+        if rec_data['web_name'] == webinfo.name and rec_data['web_url'] == webinfo.url and \
+                        rec_data['web_path'] == webinfo.path and rec_data['apptype'] == webinfo.type and \
+                        rec_data['web_git_url'] == webinfo.git_url and rec_data['serverip'] == serverip and rec_data['deploy_env'] == webinfo.deploy_env:
             return HttpResponseRedirect('/salt/website_manage/')
         else:
             webinfo.name = rec_data['web_name']
@@ -379,6 +381,7 @@ def website_modify(request,web_id):
             webinfo.path = rec_data['web_path']
             webinfo.type = rec_data['apptype']
             webinfo.git_url = rec_data['web_git_url']
+            webinfo.deploy_env = rec_data['deploy_env']
             webinfo.save()
             webinfo.server_id.clear()
             for ip in rec_data['serverip'].split(','):
