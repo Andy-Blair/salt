@@ -17,8 +17,8 @@ $(function () {
             {field: 'website_server', title: '服务器', width:'',  align:'center', valign:'middle'},
             {field: 'website_env', title: '部署环境', width:'',  align:'center', valign:'middle'},
             {field: 'website_detail', title: '', width:'',  align:'center', valign:'middle', formatter:function (value, row, index) {
-                var u = "/salt/website/"+row.id+"/d";
-                return '<a href='+u+'>详细信息</a>';
+                var u = "/salt/website/"+row.id+"/history";
+                return '<a href='+u+'>历史记录</a>';
             }},
             {field: 'init_result', title: 'init_result', align:'center', valign:'middle',visible:false},
         ],

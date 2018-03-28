@@ -29,6 +29,7 @@ urlpatterns = [
     url(r'^website/rollback/s$', views.detail_socket, name='detail_socket'),
     url(r'^website_manage/$', views.website_manage, name='website_manage'),
     url(r'^website/(\d+)/d$', views.website_detail, name='website_detail'),
+    url(r'^website/(\d+)/history$', views.history, name='history'),
     url(r'^website/add/$', views.website_add, name='website_add'),
     url(r'^website/add/cpf/$', views.create_pro_file, name='create_pro_file'),
     url(r'^website/add/server/auth$', views.server_auth, name='server_auth'),

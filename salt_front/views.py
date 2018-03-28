@@ -151,7 +151,7 @@ def detail_socket(request,operate):
                                     Commit.objects.get(tag_name=tag_name,website_id=web_id)
                                 except Exception:
                                     website = Website.objects.get(website_id=web_id)
-                                    com = Commit(tag_name=tag_name,commit_id=commit_id,author=author,date=date,message="\n".join(message),website_id=website)
+                                    com = Commit(tag_name=tag_name,commit_id=commit_id,author=author,commit_date=date,message="\n".join(message),website_id=website)
                                     com.save()
                             request.websocket.send("  " + stdout + "\n")
                             request.websocket.send("------更新完成！------\n\n")
@@ -533,3 +533,18 @@ def server_list(request):
         d['describe'] = i.describe
         data.append(d)
     return HttpResponse(json.dumps(data), content_type="application/json")
+
+
+@login_required(login_url=login_url)
+def history(request,web_id):
+    user = User.objects.get(id=request.session['_auth_user_id'])
+    login_user = user.last_name + user.first_name
+    commit = Commit.objects.filter(website_id=web_id).order_by('-com_id')
+    history = []
+    for i in commit:
+        data = {}
+        data['update_time'] = i.update_date
+        data['tag_name'] = i.tag_name
+        data['message'] = i.message
+        history.append(data)
+    return render_to_response("website_history.html",{'login_user':login_user,'history':history})
