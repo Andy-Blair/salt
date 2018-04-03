@@ -585,7 +585,7 @@ def tomcat_op_result(request,operation,web_id):
                     if result:
                         tomcat_statu = get_dval(tomcat_check,"stdout")
                         if tomcat_statu == operation.lower():
-                            request.websocket.send("Tomcat already %s" % tomcat_statu)
+                            request.websocket.send("Tomcat already %s\n" % tomcat_statu)
                         elif tomcat_statu == "start" or tomcat_statu == "stop":
                             if operation.lower() == 'start':
                                 r_user = "app"
@@ -599,7 +599,7 @@ def tomcat_op_result(request,operation,web_id):
                                 logger.info("Tomcat_start_result %s" % tomcat_start)
                                 start_result = get_dval(tomcat_start,"result")
                                 if start_result is False:
-                                    request.websocket.send("Tomcat start failed")
+                                    request.websocket.send("Tomcat start failed\n")
                                 # p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
                                 # while p_start.poll() == None:
                                 #     start_l = p_start.stdout.readline()
@@ -619,13 +619,13 @@ def tomcat_op_result(request,operation,web_id):
                                     if len(tom_stop_result) != 0:
                                         request.websocket.send(tom_stop_result + "\n\n")
                                     else:
-                                        request.websocket.send("Error: can't stop Tomcat")
+                                        request.websocket.send("Error: can't stop Tomcat\n")
                         else:
-                            request.websocket.send(tomcat_statu)
+                            request.websocket.send(tomcat_statu + '\n')
                     else:
-                        request.websocket.send("unknown tomcat status")
+                        request.websocket.send("unknown tomcat status\n")
                 break
             except Exception:
-                request.websocket.send("执行失败,请联系管理员!")
+                request.websocket.send("执行失败,请联系管理员!\n")
                 raise
         request.websocket.close()
