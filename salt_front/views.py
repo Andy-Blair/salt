@@ -600,6 +600,9 @@ def tomcat_op_result(request,operation,web_id):
                                 start_result = get_dval(tomcat_start,"result")
                                 if start_result is False:
                                     request.websocket.send("Tomcat start failed\n")
+                                    kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
+                                    logger.info("kill_tail_result %s " % kill_tail_re)
+                                    continue
                                 # p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
                                 # while p_start.poll() == None:
                                 #     start_l = p_start.stdout.readline()
