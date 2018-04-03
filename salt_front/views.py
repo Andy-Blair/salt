@@ -449,7 +449,8 @@ def wesite_list(request):
                     d['init_result'] = 0
                 else:
                     d['init_result'] = 1
-                d['website_type'] = i.type
+                web_type = i.type
+                d['website_type'] = web_type
                 d['website_env'] = i.deploy_env
                 server = i.server_id.values()
                 ips = []
@@ -474,7 +475,7 @@ def wesite_list(request):
                 d['website_name'] = web.name
                 d['website_url'] = web.url
                 d['website_type'] = web.type
-                d['website_env'] = i.deploy_env
+                d['website_env'] = web.deploy_env
                 init_fail = False
                 init_result = web.init_result
                 if init_result == 0:
@@ -548,3 +549,83 @@ def history(request,web_id):
         data['message'] = i.message
         history.append(data)
     return render_to_response("website_history.html",{'login_user':login_user,'history':history})
+
+
+@login_required(login_url=login_url)
+def tomcat_operation(request,operation,web_id):
+    user = User.objects.get(id=request.session['_auth_user_id'])
+    login_user = user.last_name + user.first_name
+    return render_to_response('service_operation_result.html',{'login_user':login_user})
+
+
+@accept_websocket
+def tomcat_op_result(request,operation,web_id):
+    if request.is_websocket():
+        web_info = Website.objects.get(website_id=web_id)
+        web_servers_info = web_info.server_id.values()
+        cli = client.LocalClient()
+
+
+        def get_dval(dic, key):
+            # get change files
+            for k, v in dic.items():
+                if k == key:
+                    return v
+                else:
+                    if isinstance(v, dict):
+                        return get_dval(v, key)
+        for soc_m in request.websocket:
+            try:
+                for i in range(len(web_servers_info)):
+                    ipadd = web_servers_info[i]["ipaddress"]
+                    request.websocket.send(ipadd.encode('utf8') + ":\n")
+                    tomcat_check = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_check'])
+                    logger.info("tomcat_check_result %s" % tomcat_check)
+                    result = get_dval(tomcat_check, "result")
+                    if result:
+                        tomcat_statu = get_dval(tomcat_check,"stdout")
+                        if tomcat_statu == operation.lower():
+                            request.websocket.send("Tomcat already %s" % tomcat_statu)
+                        elif tomcat_statu == "start" or tomcat_statu == "stop":
+                            if operation.lower() == 'start':
+                                r_user = "app"
+                                r_ip = ipadd
+                                r_port = 22
+                                r_log = "/apps/product/tomcat/logs/catalina.out"  # tomcat的启动日志路径
+                                cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f {log_path}".format(user=r_user,ip=r_ip,port=r_port,log_path=r_log)
+                                # cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
+                                p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                                tomcat_start = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_start'])
+                                logger.info("Tomcat_start_result %s" % tomcat_start)
+                                start_result = get_dval(tomcat_start,"result")
+                                if start_result is False:
+                                    request.websocket.send("Tomcat start failed")
+                                # p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+                                # while p_start.poll() == None:
+                                #     start_l = p_start.stdout.readline()
+                                #     request.websocket.send(start_l)
+                                while p_rlog.poll() == None:
+                                    re_log = p_rlog.stdout.readline()
+                                    request.websocket.send(re_log)
+                                    if "Server startup in" in re_log:
+                                        break
+                                kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
+                                logger.info("kill_tail_result %s " % kill_tail_re)
+                            elif operation.lower() == 'stop':
+                                tom_stop_re = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
+                                logger.info("tomcat_stop_result %s" % tom_stop_re)
+                                tom_stop_result = get_dval(tom_stop_re, 'stdout')
+                                if tom_stop_result is not None:
+                                    if len(tom_stop_result) != 0:
+                                        request.websocket.send(tom_stop_result + "\n\n")
+                                    else:
+                                        request.websocket.send("Error: can't stop Tomcat")
+                        else:
+                            request.websocket.send(tomcat_statu)
+                    else:
+                        request.websocket.send("unknown tomcat status")
+                break
+            except Exception:
+                request.websocket.send("执行失败,请联系管理员!")
+                raise
+        request.websocket.close()

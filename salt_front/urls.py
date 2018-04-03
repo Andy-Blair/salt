@@ -40,6 +40,8 @@ urlpatterns = [
     url(r'^website/tag/$', views.website_tag, name='website_tag'),
     url(r'^server_manage/$', views.server_manage, name='server_manage'),
     url(r'^server_list/$', views.server_list, name='server_list'),
+    url(r'^website/tomcat/(start|stop)/(\d+)/$', views.tomcat_operation, name='tomcat_operation'),
+    url(r'^website/tomcat/(start|stop)/(\d+)/s/$', views.tomcat_op_result, name='tomcat_op_result'),
 ]
 
 # urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

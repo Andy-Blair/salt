@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block main_content %}
+<div style="text-align: center"><h3>发布历史记录</h3></div>
+<hr>
+{% for commit in history %}
+<div class="bootstrap-table" align="center" style="margin-bottom: 15px">
+    <div class="fixed-table-container" style="width: 50%">
+        <div class="fixed-table-body" >
+
+            <table class="table table-hover">
+                <tr>
+                    <td>
+                        <div style="height: 25px;text-align: center; vertical-align: middle;" >更新时间</div>
+                        <div class="fht-cell"></div>
+                    </td>
+                    <td style="text-align: center; vertical-align: middle; ">{{ commit.update_time }}</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="height: 25px;text-align: center; vertical-align: middle;">Tag_Name</div>
+                        <div class="fht-cell"></div>
+                    </td>
+                    <td style="text-align: center; vertical-align: middle; ">{{ commit.tag_name }}</td>
+                </tr>
+                <tr>
+                    <td style="vertical-align: middle">
+                        <div style="height: 25px;text-align: center; vertical-align: middle;">详细信息</div>
+                        <div class="fht-cell"></div>
+                    </td>
+                    <td style="text-align: center; vertical-align: middle; word-break: break-all">{{ commit.message }}</td>
+                </tr>
+            </table>
+
+
+        </div>
+
+    </div>
+
+</div>
+{% endfor %}
+<div align="center" style="padding-top: 20px">
+    <a href="{% url "website" %}"><button class="button button-royal button-pill button-small">返回</button></a>
+</div>
+{% endblock %}

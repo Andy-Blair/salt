@@ -1,5 +1,5 @@
 /**
- * Created by duan on 9/7/17.
+ * Created by andy on 9/7/17.
  */
 $(function () {
     $('#website_list').bootstrapTable({
@@ -14,6 +14,13 @@ $(function () {
             {field: 'website_name', title: '站点名称', width:'',  align:'center', valign:'middle'},
             {field: 'website_url', title: '站点域名', width:'',  align:'center', valign:'middle'},
             {field: 'website_type', title: '应用类型', width:'',  align:'center', valign:'middle'},
+            {field: 'buttons', title: '', width:'170px',  align:'center', valign:'middle', formatter:function (value, row, index) {
+                if (row.website_type === 'tomcat'){
+                    return '<button class="button button-primary button-pill button-tiny tomcat" value="start">Start</button>  <button class="button button-primary button-pill button-tiny tomcat" value="stop">Stop</button>'
+                } else {
+                    return '-'
+                }
+            }},
             {field: 'website_server', title: '服务器', width:'',  align:'center', valign:'middle'},
             {field: 'website_env', title: '部署环境', width:'',  align:'center', valign:'middle'},
             {field: 'website_detail', title: '', width:'',  align:'center', valign:'middle', formatter:function (value, row, index) {
@@ -26,6 +33,7 @@ $(function () {
         method: 'post',
         contentType:'application/json',
         dataType:'json',
+        async:false,
         toolbar:'#toolbar',
         pagination: true,
         sortOrder: "asc",
@@ -67,7 +75,6 @@ $(function () {
         }
     });
     $('#roll_back').click(function () {
-        // $('#tag_form').submit()
         var tag_name=$('#tag').children('option:selected').text();
         if (tag_name === "请选择"){
             alert("请选择要回退到哪个Tag")
@@ -75,5 +82,14 @@ $(function () {
             var row_data=$('#website_list').bootstrapTable('getSelections');
             window.open("/salt/website/"+$(this).attr('name')+"?web_id="+row_data[0]['id']+"&tag_name="+tag_name)
         }
-    })
+    });
+    $('#website_list').on('post-body.bs.table',function () {
+        $(".tomcat").click(function () {
+            var row_data=$('#website_list').bootstrapTable('getSelections');
+            // alert($(this).val());
+            if (Object.keys(row_data).length!==0){
+                window.open("/salt/website/tomcat/"+$(this).val()+"/"+row_data[0]['id'])
+            }
+        })
+    });
 });
