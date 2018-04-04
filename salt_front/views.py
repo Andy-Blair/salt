@@ -169,7 +169,7 @@ def detail_socket(request,operate):
                             r_ip = i.strip()
                             r_port = 22
                             r_log = "/apps/product/tomcat/logs/catalina.out"  # tomcat的启动日志路径
-                            cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f {log_path}".format(user=r_user, ip=r_ip, port=r_port, log_path=r_log)
+                            cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f -n 0 {log_path}".format(user=r_user, ip=r_ip, port=r_port, log_path=r_log)
                             cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
                             p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                             tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
@@ -188,10 +188,17 @@ def detail_socket(request,operate):
                                 kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                                 logger.info(kill_tail_re)
                                 break
-                            p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                            while p_start.poll() == None:
-                                start_l = p_start.stdout.readline()
-                                request.websocket.send(start_l)
+                            tomcat_start = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_start'])
+                            logger.info("Tomcat_start_result %s" % tomcat_start)
+                            start_result = get_dval(tomcat_start, "result")
+                            if start_result is False:
+                                request.websocket.send("Tomcat start failed\n")
+                                kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
+                                logger.info("kill_tail_result %s " % kill_tail_re)
+                                continue
+                            else:
+                                start_out = get_dval(tomcat_start, "stdout")
+                                request.websocket.send(start_out + "\n")
 
                             while p_rlog.poll() == None:
                                 re_log = p_rlog.stdout.readline()
@@ -200,7 +207,6 @@ def detail_socket(request,operate):
                                     break
                             kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                             logger.info("kill_tail_result %s " % kill_tail_re)
-
                         # --- Read Tomcat Log. end ---
                     break
                 except Exception:
@@ -592,8 +598,7 @@ def tomcat_op_result(request,operation,web_id):
                                 r_ip = ipadd
                                 r_port = 22
                                 r_log = "/apps/product/tomcat/logs/catalina.out"  # tomcat的启动日志路径
-                                cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f {log_path}".format(user=r_user,ip=r_ip,port=r_port,log_path=r_log)
-                                # cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
+                                cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f -n 0 {log_path}".format(user=r_user,ip=r_ip,port=r_port,log_path=r_log)
                                 p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                                 tomcat_start = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_start'])
                                 logger.info("Tomcat_start_result %s" % tomcat_start)
@@ -603,10 +608,9 @@ def tomcat_op_result(request,operation,web_id):
                                     kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                                     logger.info("kill_tail_result %s " % kill_tail_re)
                                     continue
-                                # p_start = subprocess.Popen(cmd_tstart, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
-                                # while p_start.poll() == None:
-                                #     start_l = p_start.stdout.readline()
-                                #     request.websocket.send(start_l)
+                                else:
+                                    start_out = get_dval(tomcat_start,"stdout")
+                                    request.websocket.send(start_out+"\n")
                                 while p_rlog.poll() == None:
                                     re_log = p_rlog.stdout.readline()
                                     request.websocket.send(re_log)
@@ -614,6 +618,8 @@ def tomcat_op_result(request,operation,web_id):
                                         break
                                 kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                                 logger.info("kill_tail_result %s " % kill_tail_re)
+                                if get_dval(kill_tail_re,"result"):
+                                    request.websocket.send("------Start End------")
                             elif operation.lower() == 'stop':
                                 tom_stop_re = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
                                 logger.info("tomcat_stop_result %s" % tom_stop_re)

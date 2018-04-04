@@ -11,4 +11,4 @@ if t == 0:
 elif t == 1:
     print "start"
 else:
-    print "%s Tomcat Running, can't start or stop"
+    print "%s Tomcat Running, can't start or stop" % t
