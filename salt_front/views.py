@@ -207,6 +207,8 @@ def detail_socket(request,operate):
                                     break
                             kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                             logger.info("kill_tail_result %s " % kill_tail_re)
+                            if get_dval(kill_tail_re, "result"):
+                                request.websocket.send("------Start End------")
                         # --- Read Tomcat Log. end ---
                     break
                 except Exception:
