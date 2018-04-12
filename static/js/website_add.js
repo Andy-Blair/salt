@@ -22,6 +22,8 @@ $(function () {
            p.val(tomcat_path);
            p.attr("readonly","readonly");
        }else if (apptype === "IIS"){
+           p2.addClass("hidden");
+           p.css({'width':'100%'});
            if (readonly){
                p.attr("readonly","readonly");
                p.val(iis_path)
@@ -30,6 +32,8 @@ $(function () {
                p.val("d:\\product\\");
            }
        }else {
+           p2.addClass("hidden");
+           p.css({'width':'100%'});
            p.removeAttr("readonly");
            p.val('')
        }
