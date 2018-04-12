@@ -6,6 +6,7 @@ $(function () {
    $("#apptype").change(function () {
        var apptype=$(this).children('option:selected').text();
        var p = $("#web_path");
+       var p2 = $("#war_name");
        var url = $("#web_url").val();
        var tomcat_path = "/apps/product/tomcat/webapps/";
        var iis_path = "D:\\product\\";
@@ -15,6 +16,9 @@ $(function () {
            readonly = true;
        }
        if (apptype === "tomcat"){
+           p.css({'width':'53%'});
+           p2.removeClass("hidden");
+           p2.attr("required","true");
            p.val(tomcat_path);
            p.attr("readonly","readonly");
        }else if (apptype === "IIS"){
@@ -77,16 +81,23 @@ var website_auth = function (url) {
 
 $("#webform").submit(function () {
     var se = $("#apptype");
+    var apptype=se.children('option:selected').text();
     var webpath=$("#web_path").val();
+    var war_name=$("#war_name").val();
     var gitpath=$("#git_path").val();
     var re_wpath=/^[a-zA-Z]:\\/;
     var iswpath=re_wpath.test(webpath);
     // var re_lpath=/^\/apps\/product\/tomcat\//;
     var re_lpath=/^\//;
     var islpath=re_lpath.test(webpath);
+    var re_war =/^.+.war$/;
+    var iswar = re_war.test(war_name);
     if(!iswpath && !islpath){
         alert("Web站点物理路径格式不正确");
         return false
+    }
+    if(apptype==="tomcat" && !iswar){
+        alert("War包名字必须包含后缀")
     }
     var re_gitpath=/^git@[\S]*.git$/;
     var isgitpath=re_gitpath.test(gitpath);
@@ -119,11 +130,14 @@ $("#webform").submit(function () {
         alert('域名不能包含 "/" "\\" 字符');
         return false
     }
-    var exsit_web_name = website_auth(web_url);
-    if(exsit_web_name["responseText"] === "exsit"){
-        alert(web_url+"  already exsit");
-        return false
+    if(window.location.pathname === "/salt/website/add/"){
+        var exsit_web_name = website_auth(web_url);
+        if(exsit_web_name["responseText"] === "exsit"){
+            alert(web_url+"  already exsit");
+            return false
+        }
     }
+
     var data = {};
     var form_data = $('form').serializeArray();
     $.each(form_data,function () {

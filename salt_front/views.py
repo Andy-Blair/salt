@@ -164,6 +164,7 @@ def detail_socket(request,operate):
 
                         # --- Read Tomcat Log. start ---
                         if web_info.type.lower() == "tomcat" and re_tomcat:
+                            war_folder = os.path.splitext(web_info.path)[0]
                             # 配置远程服务器的IP，帐号，密码，端口等，因做了双机密钥信任，所以不需要密码
                             r_user = "app"
                             r_ip = i.strip()
@@ -179,6 +180,8 @@ def detail_socket(request,operate):
                             if tom_stop_result is not None:
                                 if len(tom_stop_result) != 0:
                                     request.websocket.send(tom_stop_result+"\n\n")
+                                    del_war_folder_re = cli.cmd(tgt=r_ip, fun='cmd.run', arg=['rm -rf %s' % war_folder])
+                                    logger.info("del_war_folder_result %s" % del_war_folder_re)
                                 else:
                                     tom_stop_false = True
                             else:
@@ -247,7 +250,12 @@ def website_add(request):
         return render_to_response('website_add.html', {'login_user':login_user})
     elif request.method == "POST":
         rec_data = request.POST
-        web = Website(name=rec_data['web_name'],url=rec_data['web_url'],path=rec_data['web_path'],
+        logger.info("post_data ",rec_data)
+        if rec_data['apptype'] == 'tomcat':
+            web_path = rec_data['web_path'] + rec_data['war_name']
+        else:
+            web_path = rec_data['web_path']
+        web = Website(name=rec_data['web_name'],url=rec_data['web_url'],path=web_path,
                       type=rec_data['apptype'],git_url=rec_data['web_git_url'],deploy_env=rec_data['deploy_env'])
         web.save()
         for ip in rec_data['serverip'].split(','):
@@ -379,14 +387,18 @@ def website_modify(request,web_id):
         return render_to_response('website_modify.html', {'webinfo':webinfo, 'serverip':serverip, 'login_user':login_user})
     elif request.method == "POST":
         rec_data = request.POST
-        if rec_data['web_name'] == webinfo.name and rec_data['web_url'] == webinfo.url and \
-                        rec_data['web_path'] == webinfo.path and rec_data['apptype'] == webinfo.type and \
-                        rec_data['web_git_url'] == webinfo.git_url and rec_data['serverip'] == serverip and rec_data['deploy_env'] == webinfo.deploy_env:
+        if rec_data['apptype'] == 'tomcat':
+            web_path = rec_data['web_path'] + rec_data['war_name']
+        else:
+            web_path = rec_data['web_path']
+        if rec_data['web_name'] == webinfo.name and rec_data['web_url'] == webinfo.url \
+            and web_path == webinfo.path and rec_data['apptype'] == webinfo.type and rec_data['web_git_url'] == webinfo.git_url \
+            and rec_data['serverip'] == serverip and rec_data['deploy_env'] == webinfo.deploy_env:
             return HttpResponseRedirect('/salt/website_manage/')
         else:
             webinfo.name = rec_data['web_name']
             webinfo.url = rec_data['web_url']
-            webinfo.path = rec_data['web_path']
+            webinfo.path = web_path
             webinfo.type = rec_data['apptype']
             webinfo.git_url = rec_data['web_git_url']
             webinfo.deploy_env = rec_data['deploy_env']
