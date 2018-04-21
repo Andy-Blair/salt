@@ -30,6 +30,10 @@ try:
 except Exception:
     commit_id = None
 g = Git(working_dir=git_path)
+config = g.config("-l").splitlines()
+if "user.email=jenkins@jingzhengu.com" not in config or "user.name=jenkins" not in config:
+    g.config("--global","user.email","jenkins@jingzhengu.com")
+    g.config("--global","user.name","jenkins")
 re_init = False
 try:
     g.rev_parse("--is-inside-work-tree")
@@ -78,8 +82,7 @@ if sys.platform == 'win32':
     os.popen("icacls %s /setowner app /T /C /L" % git_path)
     os.popen("icacls %s /inheritance:e /T /C /L" % git_path)
 
-print "------当前版本信息------"
-print g.log("-n","1")
+print g.log("-n","1").splitlines()[0].split()[1]
 
 if sys.platform != 'win32':
     os.popen("cp -r %s/* %s/" % (git_path, lweb_path))

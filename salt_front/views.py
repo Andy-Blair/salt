@@ -8,12 +8,13 @@ from django.contrib.auth.models import User, Group
 from models import *
 from salt import client
 import json
-import git_checkout
 from dwebsocket import accept_websocket
 import os
 import subprocess
 import time
 import logging
+import jkoperation
+import gitlaboperation
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def website_tag(request):
         tag_name = request.POST["tag_name"]
         web_id = request.POST["web_id"]
         commit = Commit.objects.get(tag_name=tag_name,website_id=web_id)
-        message = "commit   %s\nAuthor:  %s\nDate:    %s\n\n%s".decode('utf8') % (commit.commit_id,commit.author,commit.date,commit.message)
+        message = commit.tag_message
         return HttpResponse(message)
 
 
@@ -69,7 +70,7 @@ def website_tag(request):
 def update_detail(request,operate):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
-    return render_to_response('update_detail.html',{'login_user':login_user})
+    return render_to_response('update_detail.html',{'login_user': login_user, 'title': 'Web %s Result' % operate.capitalize()})
 
 
 @accept_websocket
@@ -77,6 +78,7 @@ def detail_socket(request,operate):
     if request.is_websocket():
         web_id = request.GET.get("web_id")
         tag_name = request.GET.get("tag_name")
+        # servers = request.GET.get("servers").split(",")
         if operate != "update" and operate != "rollback":
             request.websocket.send("错误的操作")
         else:
@@ -88,14 +90,14 @@ def detail_socket(request,operate):
                     apptype = web_info.type
                     sls_name = web_url.replace(".","_")
                     re_tomcat = False
-                    web_servers_info = web_info.server_id.values()
-                    web_server_ip = []
-                    for i in range(len(web_servers_info)):
-                        web_server_ip.append(web_servers_info[i]["ipaddress"])
+                    # web_servers_info = web_info.server.values()
+                    web_server_ip = request.GET.get("servers").split(",")
+                    # for i in range(len(web_servers_info)):
+                    #     web_server_ip.append(web_servers_info[i]["ipaddress"])
                     cli = client.LocalClient()
                     request.websocket.send("正在更新......\n\n")
                     for i in web_server_ip:
-                        request.websocket.send(i.strip().encode('utf8') +":\n")
+                        request.websocket.send("\n"+i.strip().encode('utf8') +":\n")
                         if operate == "update":
                             sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_update' % (sls_name, sls_name)])
                             logger.info("update_result %s" % sync_re)
@@ -128,33 +130,13 @@ def detail_socket(request,operate):
                                         return get_dval(v,key)
                         result = get_dval(sync_re,"result")
                         if result:
-                            stdout = get_dval(sync_re,"stdout")
                             re_tomcat = True
-                            all_message = stdout.split("\n")
-                            commit_id = "-"
-                            author = "-"
-                            date = "-"
-                            message = all_message[4:]
-                            tag_name = "-"
-                            for m in message:
-                                if "Tag:" in m:
-                                    tag_name = m.split(":")[1].strip()
-                            for all_m in all_message:
-                                if all_m.startswith("commit"):
-                                    commit_id = all_m.split()[1]
-                                elif all_m.startswith("Author"):
-                                    author = all_m.split(":")[1].strip()
-                                elif all_m.startswith("Date"):
-                                    date = all_m.split("e:")[1].strip()
-                            if operate == "update":
-                                try:
-                                    Commit.objects.get(tag_name=tag_name,website_id=web_id)
-                                except Exception:
-                                    website = Website.objects.get(website_id=web_id)
-                                    com = Commit(tag_name=tag_name,commit_id=commit_id,author=author,commit_date=date,message="\n".join(message),website_id=website)
-                                    com.save()
-                            request.websocket.send("  " + stdout + "\n")
-                            request.websocket.send("------更新完成！------\n\n")
+                            request.websocket.send("------当前版本信息------\n")
+                            stdout = get_dval(sync_re,"stdout")
+                            com = Commit.objects.get(commit_id=stdout.strip())
+                            request.websocket.send("\nTag Name:\n%s\n" % com.tag_name.encode('utf8'))
+                            request.websocket.send("\nMessage:\n%s\n" % com.tag_message.encode('utf8'))
+                            request.websocket.send("\n------更新完成！------\n\n")
                         else:
                             stderr = get_dval(sync_re,"stderr")
                             comment = get_dval(sync_re,"comment")
@@ -232,14 +214,16 @@ def website_detail(request,web_id):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
     website = Website.objects.get(website_id=web_id)
-    servers = website.server_id.all()
+    servers = website.server.all()
     server_ip = []
     web_server_os = None
     for server in servers:
         server_ip.append(server.ipaddress)
         web_server_os = server.ostype
     web_server_ip = ','.join(server_ip)
-    return render_to_response('website_detail.html',{'login_user':login_user,'website':website,'web_server_ip':web_server_ip,'web_server_os':web_server_os})
+    jk_name = Jenkins.objects.get(website=website).jk_name
+    return render_to_response('website_detail.html',{'login_user':login_user,'website':website,'jk_name':jk_name,
+                                                     'web_server_ip':web_server_ip,'web_server_os':web_server_os,})
 
 
 @login_required(login_url=login_url)
@@ -250,16 +234,17 @@ def website_add(request):
         return render_to_response('website_add.html', {'login_user':login_user})
     elif request.method == "POST":
         rec_data = request.POST
-        logger.info("post_data ",rec_data)
         if rec_data['apptype'] == 'tomcat':
             web_path = rec_data['web_path'] + rec_data['war_name']
         else:
             web_path = rec_data['web_path']
-        web = Website(name=rec_data['web_name'],url=rec_data['web_url'],path=web_path,
+        web = Website(name=rec_data['web_name'],url=rec_data['web_url'],path=web_path,dev_branch=rec_data['dev_branch'],
                       type=rec_data['apptype'],git_url=rec_data['web_git_url'],deploy_env=rec_data['deploy_env'])
         web.save()
         for ip in rec_data['serverip'].split(','):
-            web.server_id.add(Servers.objects.get(ipaddress=ip))
+            web.server.add(Servers.objects.get(ipaddress=ip))
+        jk = Jenkins(jk_name=rec_data['jk_name'],website=web)
+        jk.save()
         return HttpResponseRedirect('/salt/website_manage/')
 
 
@@ -379,21 +364,23 @@ def website_modify(request,web_id):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
     webinfo = Website.objects.get(website_id=web_id)
+    jk_name = Jenkins.objects.get(website=webinfo).jk_name
     servers = []
-    for i in webinfo.server_id.all():
+    for i in webinfo.server.all():
         servers.append(i.ipaddress)
     serverip = ','.join(servers)
     if request.method == "GET":
-        return render_to_response('website_modify.html', {'webinfo':webinfo, 'serverip':serverip, 'login_user':login_user})
+        war_name = os.path.split(webinfo.path)[1]
+        return render_to_response('website_modify.html', {'webinfo':webinfo, 'serverip':serverip, 'login_user':login_user,'jk_name':jk_name,'war_name':war_name})
     elif request.method == "POST":
         rec_data = request.POST
         if rec_data['apptype'] == 'tomcat':
             web_path = rec_data['web_path'] + rec_data['war_name']
         else:
             web_path = rec_data['web_path']
-        if rec_data['web_name'] == webinfo.name and rec_data['web_url'] == webinfo.url \
+        if rec_data['web_name'] == webinfo.name and rec_data['web_url'] == webinfo.url and rec_data['dev_branch'] == webinfo.dev_branch \
             and web_path == webinfo.path and rec_data['apptype'] == webinfo.type and rec_data['web_git_url'] == webinfo.git_url \
-            and rec_data['serverip'] == serverip and rec_data['deploy_env'] == webinfo.deploy_env:
+            and rec_data['serverip'] == serverip and rec_data['deploy_env'] == webinfo.deploy_env and rec_data['jk_name'] == jk_name:
             return HttpResponseRedirect('/salt/website_manage/')
         else:
             webinfo.name = rec_data['web_name']
@@ -402,11 +389,15 @@ def website_modify(request,web_id):
             webinfo.type = rec_data['apptype']
             webinfo.git_url = rec_data['web_git_url']
             webinfo.deploy_env = rec_data['deploy_env']
+            webinfo.dev_branch = rec_data['dev_branch']
             webinfo.save()
-            webinfo.server_id.clear()
+            webinfo.server.clear()
             for ip in rec_data['serverip'].split(','):
-                webinfo.server_id.add(Servers.objects.get(ipaddress=ip))
+                webinfo.server.add(Servers.objects.get(ipaddress=ip))
             webinfo.save()
+            jk = Jenkins.objects.get(website=webinfo)
+            jk.jk_name = rec_data['jk_name']
+            jk.save()
             return HttpResponseRedirect('/salt/website_manage/')
 
 
@@ -429,6 +420,32 @@ def website_auth(request):
         if exsit_web:
             return HttpResponse("exsit")
         return HttpResponse()
+
+
+@login_required(login_url=login_url)
+def jkname_auth(request):
+    if request.method == "POST":
+        rec_data = request.POST
+        exsit_jkname = Jenkins.objects.filter(jk_name=rec_data['jk_name'])
+        if exsit_jkname:
+            return HttpResponse("exsit")
+        return HttpResponse()
+
+
+@login_required(login_url=login_url)
+def tagname_auth(request):
+    if request.method == "POST":
+        rec_data = request.POST
+        web = Website.objects.get(website_id=rec_data["web_id"])
+        proname = ".".join(web.git_url.split(":")[1].split(".")[:-1])
+        tag_name = "%s_%s" %(web.deploy_env,rec_data["tag_name"])
+        gl = gitlaboperation.Gitlaboperation(proname)
+        tags = [tag.name for tag in gl.get_tags()]
+        if tag_name in tags:
+            return HttpResponse("exsit")
+        else:
+            return HttpResponse()
+
 
 @login_required(login_url=login_url)
 def website_del(request,web_id):
@@ -472,7 +489,7 @@ def wesite_list(request):
                 web_type = i.type
                 d['website_type'] = web_type
                 d['website_env'] = i.deploy_env
-                server = i.server_id.values()
+                server = i.server.values()
                 ips = []
                 for item in range(len(server)):
                     ip = server[item]['ipaddress']
@@ -507,7 +524,7 @@ def wesite_list(request):
                     d['init_result'] = 0
                 else:
                     d['init_result'] = 1
-                server = web.server_id.values()
+                server = web.server.values()
                 ips = []
                 for item in range(len(server)):
                     ip = server[item]['ipaddress']
@@ -566,7 +583,7 @@ def history(request,web_id):
         data = {}
         data['update_time'] = i.update_date
         data['tag_name'] = i.tag_name
-        data['message'] = i.message
+        data['message'] = i.tag_message
         history.append(data)
     return render_to_response("website_history.html",{'login_user':login_user,'history':history})
 
@@ -575,14 +592,15 @@ def history(request,web_id):
 def tomcat_operation(request,operation,web_id):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
-    return render_to_response('service_operation_result.html',{'login_user':login_user})
+    return render_to_response('update_detail.html',{'login_user': login_user, 'title': 'Tomcat %s Result' % operation.capitalize()})
 
 
 @accept_websocket
 def tomcat_op_result(request,operation,web_id):
     if request.is_websocket():
-        web_info = Website.objects.get(website_id=web_id)
-        web_servers_info = web_info.server_id.values()
+        # web_info = Website.objects.get(website_id=web_id)
+        # web_servers_info = web_info.server.values()
+        web_server_ip = request.GET.get("servers").split(",")
         cli = client.LocalClient()
 
 
@@ -596,8 +614,8 @@ def tomcat_op_result(request,operation,web_id):
                         return get_dval(v, key)
         for soc_m in request.websocket:
             try:
-                for i in range(len(web_servers_info)):
-                    ipadd = web_servers_info[i]["ipaddress"]
+                for i in range(len(web_server_ip)):
+                    ipadd = web_server_ip[i]
                     request.websocket.send(ipadd.encode('utf8') + ":\n")
                     tomcat_check = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_check'])
                     logger.info("tomcat_check_result %s" % tomcat_check)
@@ -652,3 +670,109 @@ def tomcat_op_result(request,operation,web_id):
                 request.websocket.send("执行失败,请联系管理员!\n")
                 raise
         request.websocket.close()
+
+
+@login_required(login_url=login_url)
+def build(request,web_id):
+    user = User.objects.get(id=request.session['_auth_user_id'])
+    login_user = user.last_name + user.first_name
+    return render_to_response('update_detail.html',{'login_user':login_user,'title':"Jenkins Build Result"})
+
+
+@accept_websocket
+def build_socket(request,web_id,):
+    if request.is_websocket():
+        for soc_m in request.websocket:
+            try:
+                tag_name = request.GET.get("tagname")
+                tag_message = request.GET.get("tagmessage")
+                web_info = Website.objects.get(website_id=web_id)
+                proname = ".".join(web_info.git_url.split(":")[1].split(".")[:-1])
+                dev_branch = web_info.dev_branch
+                deploy_env = web_info.deploy_env
+                gl = gitlaboperation.Gitlaboperation(proname)
+                build_branch = 'online'
+                br_lsit = gl.get_branches()
+                if build_branch not in br_lsit:
+                    request.websocket.send("没有online分支，正在创建online分支……\n")
+                    gl.create_branch(name=build_branch,ref='master',protect=True)
+                    request.websocket.send("online分支创建成功！\n\n")
+                request.websocket.send("正在将开发分支%s合并到online分支……\n" % web_info.dev_branch.decode('gbk').encode('utf8'))
+                merge = gl.merge_branch(source=dev_branch,target=build_branch,title="merge %s to %s" % (dev_branch,build_branch))
+                if merge:
+                    request.websocket.send("分支合并成功！\n\n")
+                    build_job = True
+                else:
+                    build_job = False
+            except Exception:
+                request.websocket.send("分支合并失败，请联系管理员!\n")
+                raise
+            if build_job:
+                try:
+                    request.websocket.send("Jenkins构建中…………\n\n")
+                    jk_name = Jenkins.objects.get(website_id=web_id).jk_name.encode('utf8')
+                    jk = jkoperation.JKoperation()
+                    jk.build_job(proname=jk_name,parameter={"push":"true","deploy_branch":"%s_deploy" % deploy_env,"git_path":web_info.git_url,"test_build":"false"})
+                except Exception:
+                    request.websocket.send("构建失败,请联系管理员!\n")
+                    raise
+                try:
+                    next_build_num = jk.next_build_number(jk_name)
+                    while True:
+                        try:
+                            building = jk.build_status(jk_name,next_build_num)
+                            if building:
+                                break
+                            else:
+                                time.sleep(1)
+                                continue
+                        except Exception:
+                            time.sleep(1)
+                            continue
+                    pre = []
+                    while True:
+                        output = jk.get_build_output(jk_name,next_build_num).decode('gbk').encode('utf8')
+                        tmp = [i for i in output.splitlines() if i not in pre]
+                        if len(tmp) > 0:
+                            pre = output.splitlines()
+                            request.websocket.send("\n".join(tmp))
+                            request.websocket.send("\n")
+                        else:
+                            building = jk.build_status(jk_name,next_build_num)
+                            if building:
+                                time.sleep(1)
+                            else:
+                                break
+                except Exception:
+                    request.websocket.send("构建信息读取失败!\n")
+                    raise
+                try:
+                    build_result = jk.build_result(jk_name,next_build_num)
+                    if build_result == "SUCCESS":
+                        request.websocket.send("\n\n构建成功！\n\n")
+                        request.websocket.send("正在创建Tag标签……\n")
+                        tag = gl.create_tag(name="%s_%s" % (deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
+                        commit_id = tag.commit.id
+                        com = Commit(tag_name=tag_name,tag_message=tag_message,commit_id=commit_id,website=web_info)
+                        com.save()
+                        request.websocket.send("Tag标签创建成功！\n\n")
+                except Exception:
+                    request.websocket.send("Tag标签创建失败,请联系管理员!\n")
+                    raise
+            break
+        request.websocket.close()
+
+
+@login_required(login_url=login_url)
+def get_git_branchs(request):
+    git_path = request.POST['git_path']
+    git_pro_name = git_path.split(":")[1].split(".")[0]
+    gl = gitlaboperation.Gitlaboperation(proname=git_pro_name)
+    branchs = gl.get_branches()
+    branch_list = "<option>请选择</option>\n".decode('utf8')
+    for i in branchs:
+        if i == "online_deploy" or i == "sandbox_deploy" or i == "online" or i == "master":
+            continue
+        else:
+            branch_list = branch_list + "<option>%s</option>\n".decode('utf8') % i
+    return HttpResponse(branch_list)

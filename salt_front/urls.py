@@ -34,6 +34,8 @@ urlpatterns = [
     url(r'^website/add/cpf/$', views.create_pro_file, name='create_pro_file'),
     url(r'^website/add/server/auth$', views.server_auth, name='server_auth'),
     url(r'^website/add/website/auth$', views.website_auth, name='website_auth'),
+    url(r'^website/add/jkname/auth$', views.jkname_auth, name='jkname_auth'),
+    url(r'^website/add/tagname/auth$', views.tagname_auth, name='tagname_auth'),
     url(r'^website/modify/(\d+)/$', views.website_modify, name='website_modify'),
     url(r'^website/del/(\d+)/$', views.website_del, name='website_del'),
     url(r'^website_list/$', views.wesite_list, name='website_list'),
@@ -42,6 +44,9 @@ urlpatterns = [
     url(r'^server_list/$', views.server_list, name='server_list'),
     url(r'^website/tomcat/(start|stop)/(\d+)/$', views.tomcat_operation, name='tomcat_operation'),
     url(r'^website/tomcat/(start|stop)/(\d+)/s/$', views.tomcat_op_result, name='tomcat_op_result'),
+    url(r'^website/getbranch/$',views.get_git_branchs,name='get_git_branchs'),
+    url(r'^website/build/(\d+)/$',views.build,name='jk_build'),
+    url(r'^website/build/(\d+)/s/$',views.build_socket,name='jk_build'),
 ]
 
 # urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

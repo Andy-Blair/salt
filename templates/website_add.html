@@ -47,7 +47,7 @@
                         <td style="text-align: center; vertical-align: middle;">
                             <select name="deploy_env" id="deploy_env" class="form-control" style="width: 100%">
                                 <option>online</option>
-                                <option selected>sandbox</option>
+                                <option>sandbox</option>
                             </select>
                         </td>
                     </tr>
@@ -57,7 +57,7 @@
                             <div class="fht-cell"></div>
                         </td>
                         <td style="text-align: center; vertical-align: middle;"><input id="web_path" class="form-control" style="width: 100%; display: inline" required type="text"  placeholder="填写绝对路径, Windows:D:\X\X  Linux:/X/X"  name="web_path" value="{{ webinfo.path }}">
-                            <input id="war_name" class="form-control hidden" type="text" style="width: 45%; display: inline" placeholder="War包名称，如：ROOT.war" name="war_name" value="{{ webinfo.war_name }}"></td>
+                            <input id="war_name" class="form-control hidden" type="text" style="width: 45%; display: inline" placeholder="War包名称，如：ROOT.war" name="war_name" value=""></td>
                     </tr>
                     <tr>
                         <td>
@@ -68,11 +68,34 @@
                     </tr>
                     <tr>
                         <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;">开发分支</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle">
+                            <select name="dev_branch" id="dev_branch" class="form-control" style="width: 78%;display: inline-block">
+                                <option>请选择</option>
+                                {% if webinfo.dev_branch %}
+                                <option selected>{{ webinfo.dev_branch }}</option>
+                                {% endif %}
+                            </select>
+                            <button id="get_branch" class="button button-primary button-rounded button-small" style="width: 20%;padding-left: 5px;padding-right: 5px;height: 33px">获取分支</button></td>
+                    </tr>
+                    <tr>
+                        <td>
                             <div style="height: 25px;text-align: right; vertical-align: middle;">部署服务器IP&nbsp</div>
                             <div class="fht-cell"></div>
                         </td>
                         <td style="text-align: center; vertical-align: middle">
                             <input id="serverip" class="form-control" required type="text" style="width: 100%;" placeholder="多个IP地址请以英文逗号分割"  name="serverip" value="{{ serverip }}">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="height: 25px;text-align: right; vertical-align: middle;">Jenkins任务名称&nbsp</div>
+                            <div class="fht-cell"></div>
+                        </td>
+                        <td style="text-align: center; vertical-align: middle">
+                            <input id="jk_name" class="form-control" required type="text" style="width: 100%;" placeholder="Jenkins任务名称"  name="jk_name" value="{{ jk_name }}">
                         </td>
                     </tr>
                 </table>
@@ -95,6 +118,23 @@
                 $(this).attr('selected','selected')
             }
         });
+        $("#deploy_env option").each(function () {
+            if($(this).text() === '{{ webinfo.deploy_env }}'){
+                $(this).attr('selected','selected')
+            }
+        });
+        var app_type = $("#apptype").children('option:selected').text();
+        if(window.location.pathname.split("/")[3]==="modify" && app_type==="tomcat"){
+            var p = $("#web_path");
+            var p2 = $("#war_name");
+            var tomcat_path = "/apps/product/tomcat/webapps/";
+            p.css({'width':'53%'});
+            p.val(tomcat_path);
+            p.attr("readonly","readonly");
+            p2.removeClass("hidden");
+            p2.attr("required","true");
+            p2.val('{{ war_name }}');
+        }
     })
 </script>
 {% endblock %}

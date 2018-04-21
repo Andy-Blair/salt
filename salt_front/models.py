@@ -27,8 +27,9 @@ class Website(models.Model):
     path = models.CharField(max_length=100)
     type = models.CharField(max_length=50)
     deploy_env = models.CharField(max_length=50)
+    dev_branch = models.CharField(max_length=50)
     git_url = models.CharField(max_length=100,default="-")
-    server_id = models.ManyToManyField(Servers)
+    server = models.ManyToManyField(Servers)
     init_result = models.IntegerField(default=0)  # 0-not init,1-init success,2-init fail
 
     def __unicode__(self):
@@ -40,7 +41,7 @@ class Services(models.Model):
     service_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50)
     belong = models.CharField(max_length=100)
-    server_id = models.ManyToManyField(Servers)
+    server = models.ManyToManyField(Servers)
 
     def __unicode__(self):
         return self.name
@@ -49,13 +50,23 @@ class Services(models.Model):
 class Commit(models.Model):
     # commit information
     com_id = models.AutoField(primary_key=True)
-    update_date = models.DateTimeField(auto_now_add=True)
     tag_name = models.CharField(max_length=50)
+    tag_message = models.CharField(max_length=5000)
     commit_id = models.CharField(max_length=100)
-    author = models.CharField(max_length=50)
-    commit_date = models.CharField(max_length=50)
-    message = models.CharField(max_length=500)
-    website_id = models.ForeignKey(Website)
+    update_date = models.DateTimeField(auto_now_add=True)
+    website = models.ForeignKey(Website)
 
     def __unicode__(self):
         return self.tag_name
+
+
+class Jenkins(models.Model):
+    jk_id = models.AutoField(primary_key=True)
+    jk_name = models.CharField(max_length=50)
+    # build_status = models.CharField(max_length=50)
+    # last_build_result = models.CharField(max_length=50)
+    # last_build_time = models.DateTimeField(auto_now_add=True)
+    website = models.OneToOneField(Website)
+
+    def __unicode__(self):
+        return self.jk_name

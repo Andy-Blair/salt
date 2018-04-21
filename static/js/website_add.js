@@ -3,6 +3,7 @@
  */
 
 $(function () {
+
    $("#apptype").change(function () {
        var apptype=$(this).children('option:selected').text();
        var p = $("#web_path");
@@ -23,6 +24,7 @@ $(function () {
            p.attr("readonly","readonly");
        }else if (apptype === "IIS"){
            p2.addClass("hidden");
+           p2.removeAttr("required");
            p.css({'width':'100%'});
            if (readonly){
                p.attr("readonly","readonly");
@@ -33,11 +35,13 @@ $(function () {
            }
        }else {
            p2.addClass("hidden");
+           p2.removeAttr("required");
            p.css({'width':'100%'});
            p.removeAttr("readonly");
            p.val('')
        }
-   })
+   });
+
 });
 
 var isIp = function (){
@@ -83,8 +87,45 @@ var website_auth = function (url) {
         });
 };
 
+var jkname_auth = function (jkname) {
+    return $.ajax({
+        url:'/salt/website/add/jkname/auth',
+        async:false,
+        type:"POST",
+        data:{'jk_name':jkname}
+        });
+};
+
+$("#get_branch").click(function () {
+    var get_branch_text=$(this).text();
+    var gitpath=$("#git_path").val();
+    var re_gitpath=/^git@[\S]*.git$/;
+    var isgitpath=re_gitpath.test(gitpath);
+    var dev_branch=$("#dev_branch");
+    if (isgitpath){
+        $(this).text("获取中...");
+        $(this).attr({'disabled':true});
+        $.ajax({
+            url:'/salt/website/getbranch/',
+            async:false,
+            type:"POST",
+            data:{'git_path':gitpath},
+            success:function (data, status) {
+                dev_branch.empty();
+                dev_branch.append(data);
+                $("#get_branch").removeAttr("disabled");
+                $("#get_branch").text(get_branch_text);
+            }
+        });
+    } else {
+        alert("Gitpath必须使用内部Git服务器SSH协议地址");
+    }
+    return false
+});
+
 $("#webform").submit(function () {
     var se = $("#apptype");
+    var dev_branch = $("#dev_branch");
     var apptype=se.children('option:selected').text();
     var webpath=$("#web_path").val();
     var war_name=$("#war_name").val();
@@ -101,7 +142,8 @@ $("#webform").submit(function () {
         return false
     }
     if(apptype==="tomcat" && !iswar){
-        alert("War包名字必须包含后缀")
+        alert("War包名字必须包含后缀");
+        return false
     }
     var re_gitpath=/^git@[\S]*.git$/;
     var isgitpath=re_gitpath.test(gitpath);
@@ -114,6 +156,10 @@ $("#webform").submit(function () {
         alert("请选择应用类型");
         return false
     }
+    if(dev_branch.find("option:selected").text()==="请选择"){
+        alert("请选择一个分支");
+        return false
+    }
     var ips = $("#serverip").val();
     var isIP = ips.split(',').every(function (ip) {
         return isIp(ip)
@@ -124,7 +170,7 @@ $("#webform").submit(function () {
     }
     var ip = server_auth(ips);
     if(ip["responseText"].length!==0){
-        alert("no server "+ip["responseText"]);
+        alert("没有找到服务器 "+ip["responseText"]);
         return false;
     }
     var web_url = $("#web_url").val();
@@ -137,7 +183,13 @@ $("#webform").submit(function () {
     if(window.location.pathname === "/salt/website/add/"){
         var exsit_web_name = website_auth(web_url);
         if(exsit_web_name["responseText"] === "exsit"){
-            alert(web_url+"  already exsit");
+            alert("域名 "+web_url+" 已存在");
+            return false
+        }
+        var jk_name =$("#jk_name").val();
+        var exsit_jkname = jkname_auth(jk_name);
+        if(exsit_jkname["responseText"]==="exsit"){
+            alert("Jenkins任务名称 "+jk_name+" 已存在");
             return false
         }
     }
