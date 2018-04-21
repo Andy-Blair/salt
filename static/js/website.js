@@ -13,6 +13,7 @@ $(function () {
             {field: 'id', title: 'ID', align:'center', valign:'middle', visible:false},
             {field: 'website_name', title: '站点名称', width:'',  align:'center', valign:'middle'},
             {field: 'website_env', title: '部署环境', width:'',  align:'center', valign:'middle'},
+            {field: 'website_dev_branch', title: '开发分支', width:'',  align:'center', valign:'middle'},
             {field: 'website_url', title: '站点域名', width:'',  align:'center', valign:'middle'},
             {field: 'website_type', title: '应用类型', width:'',  align:'center', valign:'middle'},
             {field: 'buttons', title: '', width:'170px',  align:'center', valign:'middle', events: tomcatEvents={

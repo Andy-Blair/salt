@@ -489,6 +489,7 @@ def wesite_list(request):
                 web_type = i.type
                 d['website_type'] = web_type
                 d['website_env'] = i.deploy_env
+                d['website_dev_branch'] = i.dev_branch
                 server = i.server.values()
                 ips = []
                 for item in range(len(server)):
@@ -513,6 +514,7 @@ def wesite_list(request):
                 d['website_url'] = web.url
                 d['website_type'] = web.type
                 d['website_env'] = web.deploy_env
+                d['website_dev_branch'] = i.dev_branch
                 init_fail = False
                 init_result = web.init_result
                 if init_result == 0:
@@ -697,7 +699,7 @@ def build_socket(request,web_id,):
                     request.websocket.send("没有online分支，正在创建online分支……\n")
                     gl.create_branch(name=build_branch,ref='master',protect=True)
                     request.websocket.send("online分支创建成功！\n\n")
-                request.websocket.send("正在将开发分支%s合并到online分支……\n" % web_info.dev_branch.decode('gbk').encode('utf8'))
+                request.websocket.send("正在将开发分支%s合并到online分支……\n" % web_info.dev_branch.encode('utf8'))
                 merge = gl.merge_branch(source=dev_branch,target=build_branch,title="merge %s to %s" % (dev_branch,build_branch))
                 if merge:
                     request.websocket.send("分支合并成功！\n\n")
