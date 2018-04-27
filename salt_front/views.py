@@ -15,6 +15,7 @@ import time
 import logging
 import jkoperation
 import gitlaboperation
+import publicmethod
 
 logger = logging.getLogger(__name__)
 
@@ -514,7 +515,7 @@ def wesite_list(request):
                 d['website_url'] = web.url
                 d['website_type'] = web.type
                 d['website_env'] = web.deploy_env
-                d['website_dev_branch'] = i.dev_branch
+                d['website_dev_branch'] = web.dev_branch
                 init_fail = False
                 init_result = web.init_result
                 if init_result == 0:
@@ -685,44 +686,58 @@ def build(request,web_id):
 def build_socket(request,web_id,):
     if request.is_websocket():
         for soc_m in request.websocket:
+            tag_name = request.GET.get("tagname")
+            tag_message = request.GET.get("tagmessage")
+            web_info = Website.objects.get(website_id=web_id)
+            proname = ".".join(web_info.git_url.split(":")[1].split(".")[:-1])
+            dev_branch = web_info.dev_branch
+            deploy_env = web_info.deploy_env
             try:
-                tag_name = request.GET.get("tagname")
-                tag_message = request.GET.get("tagmessage")
-                web_info = Website.objects.get(website_id=web_id)
-                proname = ".".join(web_info.git_url.split(":")[1].split(".")[:-1])
-                dev_branch = web_info.dev_branch
-                deploy_env = web_info.deploy_env
                 gl = gitlaboperation.Gitlaboperation(proname)
                 build_branch = 'online'
                 br_lsit = gl.get_branches()
                 if build_branch not in br_lsit:
-                    request.websocket.send("没有online分支，正在创建online分支……\n")
-                    gl.create_branch(name=build_branch,ref='master',protect=True)
-                    request.websocket.send("online分支创建成功！\n\n")
+                    try:
+                        request.websocket.send("没有online分支，正在创建online分支……\n")
+                        gl.create_branch(name=build_branch,ref='master',protect=True)
+                        request.websocket.send("online分支创建成功！\n\n")
+                    except Exception:
+                        request.websocket.send("online分支创建失败，请联系管理员!\n\n")
                 request.websocket.send("正在将开发分支%s合并到online分支……\n" % web_info.dev_branch.encode('utf8'))
                 merge = gl.merge_branch(source=dev_branch,target=build_branch,title="merge %s to %s" % (dev_branch,build_branch))
                 if merge:
                     request.websocket.send("分支合并成功！\n\n")
-                    build_job = True
-                else:
-                    build_job = False
+                    web_info.merge_result = "success"
+                    web_info.build_result = "-"
+                    web_info.create_tag_result = "-"
+                    web_info.save()
             except Exception:
-                request.websocket.send("分支合并失败，请联系管理员!\n")
-                raise
-            if build_job:
-                try:
-                    request.websocket.send("Jenkins构建中…………\n\n")
-                    jk_name = Jenkins.objects.get(website_id=web_id).jk_name.encode('utf8')
-                    jk = jkoperation.JKoperation()
-                    jk.build_job(proname=jk_name,parameter={"push":"true","deploy_branch":"%s_deploy" % deploy_env,"git_path":web_info.git_url,"test_build":"false"})
-                except Exception:
-                    request.websocket.send("构建失败,请联系管理员!\n")
+                merge_result = web_info.merge_result
+                if merge_result == "success":
+                    request.websocket.send("分支已合并，跳过此步骤！\n\n")
+                else:
+                    request.websocket.send("分支合并失败，请联系管理员!\n")
                     raise
+            try:
+                build_result = web_info.build_result
+                request.websocket.send("Jenkins构建中…………\n\n")
+                jk_name = Jenkins.objects.get(website_id=web_id).jk_name
+                jk = jkoperation.JKoperation()
+                next_build_num = jk.next_build_number(jk_name.encode('utf8'))
+                if build_result != "success":
+                    jk.build_job(proname=jk_name.encode('utf8'),parameter={"push":"true","deploy_branch":"%s_deploy" % deploy_env,"git_path":web_info.git_url,"test_build":"false"})
+                    read_console = True
+                else:
+                    read_console = False
+                    request.websocket.send("最新代码已经构建成功，跳过此步骤！\n\n")
+            except Exception:
+                request.websocket.send("构建失败,请联系管理员!\n")
+                raise
+            if read_console:
                 try:
-                    next_build_num = jk.next_build_number(jk_name)
                     while True:
                         try:
-                            building = jk.build_status(jk_name,next_build_num)
+                            building = jk.build_status(jk_name.encode('utf8'),next_build_num)
                             if building:
                                 break
                             else:
@@ -733,14 +748,14 @@ def build_socket(request,web_id,):
                             continue
                     pre = []
                     while True:
-                        output = jk.get_build_output(jk_name,next_build_num).decode('gbk').encode('utf8')
-                        tmp = [i for i in output.splitlines() if i not in pre]
+                        output = jk.get_build_output(jk_name.encode('utf8'),next_build_num)
+                        tmp = [i.decode('gbk').encode('utf8') for i in output.splitlines() if i not in pre]
                         if len(tmp) > 0:
                             pre = output.splitlines()
                             request.websocket.send("\n".join(tmp))
                             request.websocket.send("\n")
                         else:
-                            building = jk.build_status(jk_name,next_build_num)
+                            building = jk.build_status(jk_name.encode('utf8'),next_build_num)
                             if building:
                                 time.sleep(1)
                             else:
@@ -748,19 +763,27 @@ def build_socket(request,web_id,):
                 except Exception:
                     request.websocket.send("构建信息读取失败!\n")
                     raise
-                try:
-                    build_result = jk.build_result(jk_name,next_build_num)
-                    if build_result == "SUCCESS":
-                        request.websocket.send("\n\n构建成功！\n\n")
-                        request.websocket.send("正在创建Tag标签……\n")
-                        tag = gl.create_tag(name="%s_%s" % (deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
-                        commit_id = tag.commit.id
-                        com = Commit(tag_name=tag_name,tag_message=tag_message,commit_id=commit_id,website=web_info)
-                        com.save()
-                        request.websocket.send("Tag标签创建成功！\n\n")
-                except Exception:
-                    request.websocket.send("Tag标签创建失败,请联系管理员!\n")
-                    raise
+            try:
+                build_result = jk.build_result(jk_name.encode('utf8'),next_build_num)
+                if build_result == "SUCCESS":
+                    request.websocket.send("\n\n构建成功！\n\n")
+                    web_info.build_result = "success"
+                    web_info.save()
+                    request.websocket.send("正在创建Tag标签……\n")
+                    tag = gl.create_tag(name="%s_%s" % (deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
+                    commit_id = tag.commit.id
+                    com = Commit(tag_name=tag_name,tag_message=tag_message,commit_id=commit_id,website=web_info)
+                    com.save()
+                    request.websocket.send("Tag标签创建成功！\n\n")
+                    if web_info.merge_result == web_info.build_result == "success":
+                        web_info.merge_result = "-"
+                        web_info.build_result = "-"
+                        web_info.save()
+                else:
+                    request.websocket.send("构建失败，不创建Tag标签！\n")
+            except Exception:
+                request.websocket.send("Tag标签创建失败,请联系管理员!\n")
+                raise
             break
         request.websocket.close()
 

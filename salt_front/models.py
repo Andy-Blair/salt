@@ -31,6 +31,9 @@ class Website(models.Model):
     git_url = models.CharField(max_length=100,default="-")
     server = models.ManyToManyField(Servers)
     init_result = models.IntegerField(default=0)  # 0-not init,1-init success,2-init fail
+    merge_result = models.CharField(max_length=50,default="-")
+    build_result = models.CharField(max_length=50,default="-")
+    create_tag_result = models.CharField(max_length=50,default="-")
 
     def __unicode__(self):
         return self.name
