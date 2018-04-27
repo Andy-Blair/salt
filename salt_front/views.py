@@ -776,7 +776,8 @@ def build_socket(request,web_id,):
                     com.save()
                     request.websocket.send("Tag标签创建成功！\n\n")
                     if web_info.merge_result == web_info.build_result == "success":
-                        web_info.merge_result = "-"
+                        if web_info.type != "IIS":
+                            web_info.merge_result = "-"
                         web_info.build_result = "-"
                         web_info.save()
                 else:
