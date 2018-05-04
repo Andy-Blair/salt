@@ -66,4 +66,20 @@ $(function () {
            }
         }
     });
+   $('#reinit').click(function () {
+       var row_data=$('#website_list').bootstrapTable('getSelections');
+       if (Object.keys(row_data).length===0){
+           $.post("/salt/website/reinit/",{web_id:'all'},function (data, status) {
+           alert(data);
+           window.location.reload()
+       })
+       } else if (Object.keys(row_data).length!==0){
+           $.post("/salt/website/reinit/",{web_id:row_data[0]['id'],servers:row_data[0]['website_server']},function (data, status) {
+               alert(data);
+               window.location.reload()
+           })
+       }
+
+
+   })
 });

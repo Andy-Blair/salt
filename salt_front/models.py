@@ -23,7 +23,7 @@ class Website(models.Model):
     # website info
     website_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
-    url = models.URLField()
+    url = models.CharField(max_length=100)
     path = models.CharField(max_length=100)
     type = models.CharField(max_length=50)
     deploy_env = models.CharField(max_length=50)
@@ -55,7 +55,7 @@ class Commit(models.Model):
     com_id = models.AutoField(primary_key=True)
     tag_name = models.CharField(max_length=50)
     tag_message = models.CharField(max_length=5000)
-    commit_id = models.CharField(max_length=100)
+    commit_id = models.CharField(max_length=100,unique=True)
     update_date = models.DateTimeField(auto_now_add=True)
     website = models.ForeignKey(Website)
 

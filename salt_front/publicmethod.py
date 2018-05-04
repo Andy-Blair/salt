@@ -113,4 +113,10 @@ def create_pro_file(web, servers):
         logger.info("create_project_script_result %s" % sync_re)
         re = get_dval(sync_re, "result")
         result[ip] = re
-    return result
+    val = result.values()
+    new_li = list(set(val))
+    if len(new_li) == 1 and new_li[0] == True:
+        init = "success"
+    else:
+        init = "failer"
+    return init

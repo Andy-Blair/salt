@@ -16,6 +16,9 @@
         <button id="add" class="button button-royal button-pill button-small">新增</button>
         <button id="modify" class="button button-royal button-pill button-small">修改</button>
         <button id="del" class="button button-royal button-pill button-small">删除</button>
+        {% if login_user == "admin" %}
+            <button id="reinit" class="button button-royal button-pill button-small">重新初始化</button>
+        {% endif %}
     </div>
 {% endblock %}
 

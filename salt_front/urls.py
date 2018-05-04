@@ -47,6 +47,7 @@ urlpatterns = [
     url(r'^website/getbranch/$',views.get_git_branchs,name='get_git_branchs'),
     url(r'^website/build/(\d+)/$',views.build,name='jk_build'),
     url(r'^website/build/(\d+)/s/$',views.build_socket,name='jk_build'),
+    url(r'^website/reinit/$',views.re_init,name='re_init'),
 ]
 
 # urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

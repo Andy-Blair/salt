@@ -98,7 +98,7 @@ def detail_socket(request,operate):
                     cli = client.LocalClient()
                     request.websocket.send("正在更新......\n\n")
                     for i in web_server_ip:
-                        request.websocket.send("\n"+i.strip().encode('utf8') +":\n")
+                        request.websocket.send("\n%s:\n" % i.strip().encode('utf8'))
                         if operate == "update":
                             sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_update' % (sls_name, sls_name)])
                             logger.info("update_result %s" % sync_re)
@@ -121,29 +121,21 @@ def detail_socket(request,operate):
                             new_f.close()
                             sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_rollback' % (sls_name, sls_name)])
                             logger.info("rollback_result %s" % sync_re)
-                        def get_dval(dic,key):
-                            # get change files
-                            for k, v in dic.items():
-                                if k == key:
-                                    return v
-                                else:
-                                    if isinstance(v, dict):
-                                        return get_dval(v,key)
-                        result = get_dval(sync_re,"result")
+                        result = publicmethod.get_dval(sync_re,"result")
                         if result:
                             re_tomcat = True
                             request.websocket.send("------当前版本信息------\n")
-                            stdout = get_dval(sync_re,"stdout")
+                            stdout = publicmethod.get_dval(sync_re,"stdout")
                             com = Commit.objects.get(commit_id=stdout.strip())
                             request.websocket.send("\nTag Name:\n%s\n" % com.tag_name.encode('utf8'))
                             request.websocket.send("\nMessage:\n%s\n" % com.tag_message.encode('utf8'))
                             request.websocket.send("\n------更新完成！------\n\n")
                         else:
-                            stderr = get_dval(sync_re,"stderr")
-                            comment = get_dval(sync_re,"comment")
+                            stderr = publicmethod.get_dval(sync_re,"stderr")
+                            comment = publicmethod.get_dval(sync_re,"comment")
                             request.websocket.send("错误信息：\n")
-                            request.websocket.send("  " + comment + "\n")
-                            request.websocket.send("  " + stderr + "\n")
+                            request.websocket.send("Comment:\n%s\n" % comment)
+                            request.websocket.send("ERROR:\n%s\n" % stderr)
 
                         # --- Read Tomcat Log. start ---
                         if web_info.type.lower() == "tomcat" and re_tomcat:
@@ -158,7 +150,7 @@ def detail_socket(request,operate):
                             p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                             tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
                             logger.info("tomcat_stop_result %s" % tom_stop_re)
-                            tom_stop_result = get_dval(tom_stop_re,'stdout')
+                            tom_stop_result = publicmethod.get_dval(tom_stop_re,'stdout')
                             tom_stop_false = False
                             if tom_stop_result is not None:
                                 if len(tom_stop_result) != 0:
@@ -176,14 +168,14 @@ def detail_socket(request,operate):
                                 break
                             tomcat_start = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_start'])
                             logger.info("Tomcat_start_result %s" % tomcat_start)
-                            start_result = get_dval(tomcat_start, "result")
+                            start_result = publicmethod.get_dval(tomcat_start, "result")
                             if start_result is False:
                                 request.websocket.send("Tomcat start failed\n")
                                 kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                                 logger.info("kill_tail_result %s " % kill_tail_re)
                                 continue
                             else:
-                                start_out = get_dval(tomcat_start, "stdout")
+                                start_out = publicmethod.get_dval(tomcat_start, "stdout")
                                 request.websocket.send(start_out + "\n")
 
                             while p_rlog.poll() == None:
@@ -193,7 +185,7 @@ def detail_socket(request,operate):
                                     break
                             kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                             logger.info("kill_tail_result %s " % kill_tail_re)
-                            if get_dval(kill_tail_re, "result"):
+                            if publicmethod.get_dval(kill_tail_re, "result"):
                                 request.websocket.send("------Start End------")
                         # --- Read Tomcat Log. end ---
                     break
@@ -251,16 +243,6 @@ def website_add(request):
 
 @login_required(login_url=login_url)
 def create_pro_file(request):
-
-    def get_dval(dic, key):
-        # get change files
-        for k, v in dic.items():
-            if k == key:
-                return v
-            else:
-                if isinstance(v, dict) and len(v) > 0:
-                    return get_dval(v, key)
-
     rec_data = request.POST
     count = 0
     has_web = False
@@ -352,7 +334,7 @@ def create_pro_file(request):
         for ip in rec_data['serverip'].split(','):
             sync_re = cli.cmd(tgt=ip, fun="state.sls", arg=["pkg.script.web_git.%s.%s" % (pyscript_name, pyscript_name)])
             logger.info("create_project_script_result %s" % sync_re)
-            result = get_dval(sync_re,"result")
+            result = publicmethod.get_dval(sync_re,"result")
             if result:
                 web = Website.objects.get(url=rec_data['web_url'])
                 web.init_result = 1
@@ -605,16 +587,6 @@ def tomcat_op_result(request,operation,web_id):
         # web_servers_info = web_info.server.values()
         web_server_ip = request.GET.get("servers").split(",")
         cli = client.LocalClient()
-
-
-        def get_dval(dic, key):
-            # get change files
-            for k, v in dic.items():
-                if k == key:
-                    return v
-                else:
-                    if isinstance(v, dict):
-                        return get_dval(v, key)
         for soc_m in request.websocket:
             try:
                 for i in range(len(web_server_ip)):
@@ -622,9 +594,9 @@ def tomcat_op_result(request,operation,web_id):
                     request.websocket.send(ipadd.encode('utf8') + ":\n")
                     tomcat_check = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_check'])
                     logger.info("tomcat_check_result %s" % tomcat_check)
-                    result = get_dval(tomcat_check, "result")
+                    result = publicmethod.get_dval(tomcat_check, "result")
                     if result:
-                        tomcat_statu = get_dval(tomcat_check,"stdout")
+                        tomcat_statu = publicmethod.get_dval(tomcat_check,"stdout")
                         if tomcat_statu == operation.lower():
                             request.websocket.send("Tomcat already %s\n" % tomcat_statu)
                         elif tomcat_statu == "start" or tomcat_statu == "stop":
@@ -637,14 +609,14 @@ def tomcat_op_result(request,operation,web_id):
                                 p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                                 tomcat_start = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_start'])
                                 logger.info("Tomcat_start_result %s" % tomcat_start)
-                                start_result = get_dval(tomcat_start,"result")
+                                start_result = publicmethod.get_dval(tomcat_start,"result")
                                 if start_result is False:
                                     request.websocket.send("Tomcat start failed\n")
                                     kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                                     logger.info("kill_tail_result %s " % kill_tail_re)
                                     continue
                                 else:
-                                    start_out = get_dval(tomcat_start,"stdout")
+                                    start_out = publicmethod.get_dval(tomcat_start,"stdout")
                                     request.websocket.send(start_out+"\n")
                                 while p_rlog.poll() == None:
                                     re_log = p_rlog.stdout.readline()
@@ -653,12 +625,12 @@ def tomcat_op_result(request,operation,web_id):
                                         break
                                 kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
                                 logger.info("kill_tail_result %s " % kill_tail_re)
-                                if get_dval(kill_tail_re,"result"):
+                                if publicmethod.get_dval(kill_tail_re,"result"):
                                     request.websocket.send("------Start End------")
                             elif operation.lower() == 'stop':
                                 tom_stop_re = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
                                 logger.info("tomcat_stop_result %s" % tom_stop_re)
-                                tom_stop_result = get_dval(tom_stop_re, 'stdout')
+                                tom_stop_result = publicmethod.get_dval(tom_stop_re, 'stdout')
                                 if tom_stop_result is not None:
                                     if len(tom_stop_result) != 0:
                                         request.websocket.send(tom_stop_result + "\n\n")
@@ -802,3 +774,34 @@ def get_git_branchs(request):
         else:
             branch_list = branch_list + "<option>%s</option>\n".decode('utf8') % i
     return HttpResponse(branch_list)
+
+
+@login_required(login_url=login_url)
+def re_init(request):
+    web_id = request.POST.get("web_id")
+    servers = request.POST.get("servers")
+    if web_id == "all":
+        webs = Website.objects.all()
+        for web in webs:
+            servers = web.server.values()
+            server_list = [server['ipaddress'] for server in servers]
+            result = publicmethod.create_pro_file(web,server_list)
+            if result == "success":
+                web.init_result = 1
+                web.save()
+            else:
+                web.init_result = 0
+                web.save()
+    elif web_id is not None:
+        web = Website.objects.get(website_id=web_id)
+        server_li = servers.split(",")
+        result = publicmethod.create_pro_file(web,server_li)
+        if result == "success":
+            web.init_result = 1
+            web.save()
+        else:
+            web.init_result = 0
+            web.save()
+    else:
+        return HttpResponse("Reinit Failer")
+    return HttpResponse("Reinit End")
