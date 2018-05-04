@@ -666,7 +666,7 @@ def build_socket(request,web_id,):
                     request.websocket.send("正在创建Tag标签……\n")
                     tag = gl.create_tag(name="%s_%s" % (deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
                     commit_id = tag.commit.id
-                    com = Commit(tag_name=tag_name,tag_message=tag_message,commit_id=commit_id,website=web_info)
+                    com = Commit(tag_name="%s_%s" % (deploy_env,tag_name),tag_message=tag_message,commit_id=commit_id,website=web_info)
                     com.save()
                     request.websocket.send("Tag标签创建成功！\n\n")
                     if web_info.merge_result == web_info.build_result == "success":
