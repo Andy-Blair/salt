@@ -14,15 +14,15 @@ from git import *
 
 git_url = ""
 git_path = ""
+lweb_path = "/apps/product/tomcat/webapps/"
 if sys.platform != 'win32':
-    lweb_path = git_path
     file_path = os.path.split(os.path.realpath(__file__))
     git_path = file_path[0] + "/%s" % file_path[1].split(".")[0]
-    if not os.path.exists(git_path + "/"):
+    if not os.path.isdir(git_path):
         if os.path.exists(git_path):
             os.remove(git_path)
         os.mkdir(git_path+"/")
-used_branch = "jenkins"
+used_branch = ""
 remote_repo_name = "online"
 operator = sys.argv[1]
 try:
@@ -53,14 +53,7 @@ except:
     re_init = True
 if re_init:
     if os.path.isdir(git_path):
-        f_list = os.listdir(git_path)
-        if len(f_list) > 0:
-            for f in f_list:
-                filepath = os.path.join(git_path, f)
-                if os.path.isfile(filepath):
-                    os.remove(filepath)
-                elif os.path.isdir(filepath):
-                    shutil.rmtree(filepath, True)
+        shutil.rmtree(git_path)
     else:
         if os.path.exists(git_path):
             os.remove(git_path)
@@ -85,4 +78,4 @@ if sys.platform == 'win32':
 print g.log("-n","1").splitlines()[0].split()[1]
 
 if sys.platform != 'win32':
-    os.popen("cp -r %s/* %s/" % (git_path, lweb_path))
+    os.popen("cp -r %s/* %s" % (git_path, lweb_path))

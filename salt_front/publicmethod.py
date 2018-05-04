@@ -38,11 +38,7 @@ def create_pro_file(web, servers):
             py_lines[num] = py_lines[num].replace(py_lines[num], "git_url = '%s'" % web.git_url + "\n")
         elif py_lines[num].strip() == 'git_path = ""':
             if web.type == "IIS":
-                py_lines[num] = py_lines[num].replace(py_lines[num],
-                                                      "git_path = '%s'" % web.path.replace('\\', '\\\\') + "\n")
-            else:
-                py_lines[num] = py_lines[num].replace(py_lines[num],
-                                                      "git_path = '%s'" % os.path.split(web.path)[0] + "\n")
+                py_lines[num] = py_lines[num].replace(py_lines[num],"git_path = '%s'" % web.path.replace('\\', '\\\\') + "\n")
         if py_lines[num].startswith("used_branch"):
             if web.deploy_env == "online":
                 py_lines[num] = 'used_branch = "online_deploy"\n'
