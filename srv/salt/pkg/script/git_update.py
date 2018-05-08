@@ -54,6 +54,7 @@ except:
 if re_init:
     if os.path.isdir(git_path):
         shutil.rmtree(git_path)
+        os.makedirs(git_path)
     else:
         if os.path.exists(git_path):
             os.remove(git_path)

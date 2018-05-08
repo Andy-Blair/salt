@@ -641,8 +641,21 @@ def build_socket(request,web_id,):
                             time.sleep(1)
                             continue
                     pre = []
+                    read_console_time_out = 0
                     while True:
-                        output = jk.get_build_output(jk_name.encode('utf8'),next_build_num)
+                        try:
+                            output = jk.get_build_output(jk_name.encode('utf8'),next_build_num)
+                        except Exception,e:
+                            if "Connection timed out" in e:
+                                if read_console_time_out > 5:
+                                    request.websocket.send("构建信息读取超时!\n")
+                                    raise
+                                else:
+                                    read_console_time_out += 1
+                                    time.sleep(1)
+                                    continue
+                            else:
+                                raise
                         tmp = [i.decode('gbk').encode('utf8') for i in output.splitlines() if i not in pre]
                         if len(tmp) > 0:
                             pre = output.splitlines()
