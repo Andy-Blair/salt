@@ -38,7 +38,8 @@ re_init = False
 try:
     g.rev_parse("--is-inside-work-tree")
     remote_repo_url = g.remote("-v").splitlines()[0].split()[1]
-    if remote_repo_url != git_url:
+    house = os.listdir(git_path)
+    if remote_repo_url != git_url or len(house) < 2:
         re_init = True
     else:
         local_branch = g.branch().splitlines()

@@ -254,11 +254,10 @@ def create_pro_file(request):
         count += 1
         time.sleep(1)
     if has_web:
-        web = Website.objects.get(url=rec_data["web_url"])
-        result = publicmethod.create_pro_file(web,rec_data['serverip'].split(','))
+        web = Website.objects.filter(url=rec_data["web_url"])
+        result = publicmethod.create_pro_file(web[0],rec_data['serverip'].split(','))
         if result == "success":
-            web.init_result = 1
-            web.save()
+            web.update(init_result=1)
     else:
         logger.error("check web timeout!")
     return HttpResponse()
