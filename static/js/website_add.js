@@ -170,7 +170,7 @@ $("#webform").submit(function () {
     }
     var ip = server_auth(ips);
     if(ip["responseText"].length!==0){
-        alert("没有找到服务器 "+ip["responseText"]);
+        alert(ip["responseText"]);
         return false;
     }
     var web_url = $("#web_url").val();

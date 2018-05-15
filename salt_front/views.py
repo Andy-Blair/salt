@@ -222,6 +222,7 @@ def website_detail(request,web_id):
 @login_required(login_url=login_url)
 def website_add(request):
     user = User.objects.get(id=request.session['_auth_user_id'])
+    group = user.groups.last()
     login_user = user.last_name + user.first_name
     if request.method == "GET":
         return render_to_response('website_add.html', {'login_user':login_user})
@@ -236,6 +237,10 @@ def website_add(request):
         web.save()
         for ip in rec_data['serverip'].split(','):
             web.server.add(Servers.objects.get(ipaddress=ip))
+            server = Servers.objects.get(ipaddress=ip)
+            server.group = group
+            server.describe = group.name
+            server.save()
         jk = Jenkins(jk_name=rec_data['jk_name'],website=web)
         jk.save()
         return HttpResponseRedirect('/salt/website_manage/')
@@ -309,10 +314,17 @@ def website_modify(request,web_id):
 def server_auth(request):
     if request.method == "POST":
         rec_data = request.POST
+        user = User.objects.get(id=request.session['_auth_user_id'])
+        user_groups = user.groups.all()
+        user_group_names = [g.name for g in user_groups]
         for ip in rec_data['ipaddress'].split(','):
-            exsit_ip = Servers.objects.filter(ipaddress=ip)
-            if not exsit_ip:
-                return HttpResponse(ip)
+            try:
+                exsit_ip = Servers.objects.get(ipaddress=ip)
+            except Exception:
+                return HttpResponse("%s 不存在" % ip)
+            ip_group = exsit_ip.group.name
+            if ip_group not in user_group_names and ip_group != "超级管理员":
+                return HttpResponse("%s 已经被使用" % ip)
         return HttpResponse()
 
 
@@ -585,19 +597,19 @@ def build_socket(request,web_id,):
             proname = ".".join(web_info.git_url.split(":")[1].split(".")[:-1])
             dev_branch = web_info.dev_branch
             deploy_env = web_info.deploy_env
+            gl = gitlaboperation.Gitlaboperation(proname)
+            build_branch = 'online'
+            br_lsit = gl.get_branches()
+            if build_branch not in br_lsit:
+                try:
+                    request.websocket.send("没有online分支，正在创建online分支……\n")
+                    gl.create_branch(name=build_branch,ref='master',protect=True)
+                    request.websocket.send("online分支创建成功！\n\n")
+                except Exception:
+                    request.websocket.send("online分支创建失败，请联系管理员!\n\n")
             try:
-                gl = gitlaboperation.Gitlaboperation(proname)
-                build_branch = 'online'
-                br_lsit = gl.get_branches()
-                if build_branch not in br_lsit:
-                    try:
-                        request.websocket.send("没有online分支，正在创建online分支……\n")
-                        gl.create_branch(name=build_branch,ref='master',protect=True)
-                        request.websocket.send("online分支创建成功！\n\n")
-                    except Exception:
-                        request.websocket.send("online分支创建失败，请联系管理员!\n\n")
                 request.websocket.send("正在将开发分支%s合并到online分支……\n" % web_info.dev_branch.encode('utf8'))
-                merge = gl.merge_branch(source=dev_branch,target=build_branch,title="merge %s to %s" % (dev_branch,build_branch))
+                merge = gl.merge_branch(source=dev_branch, target=build_branch,title="merge %s to %s" % (dev_branch, build_branch))
                 if merge:
                     request.websocket.send("分支合并成功！\n\n")
                     web_info.merge_result = "success"
@@ -655,9 +667,10 @@ def build_socket(request,web_id,):
                                     continue
                             else:
                                 raise
-                        tmp = [i.decode('gbk').encode('utf8') for i in output.splitlines() if i not in pre]
+                        output_list = output.splitlines()
+                        tmp = [i.decode('gbk').encode('utf8') for i in output_list if i not in pre]
                         if len(tmp) > 0:
-                            pre = output.splitlines()
+                            pre = output_list
                             request.websocket.send("\n".join(tmp))
                             request.websocket.send("\n")
                         else:
@@ -665,7 +678,10 @@ def build_socket(request,web_id,):
                             if building:
                                 time.sleep(1)
                             else:
-                                break
+                                if output_list[-1].startswith("Finished:"):
+                                    break
+                                else:
+                                    time.sleep(1)
                 except Exception:
                     request.websocket.send("构建信息读取失败!\n")
                     raise
@@ -698,7 +714,7 @@ def build_socket(request,web_id,):
 @login_required(login_url=login_url)
 def get_git_branchs(request):
     git_path = request.POST['git_path']
-    git_pro_name = git_path.split(":")[1].split(".")[0]
+    git_pro_name = ".".join(git_path.split(":")[1].split(".")[0:-1])
     gl = gitlaboperation.Gitlaboperation(proname=git_pro_name)
     branchs = gl.get_branches()
     branch_list = "<option>请选择</option>\n".decode('utf8')

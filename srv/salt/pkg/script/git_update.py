@@ -3,12 +3,13 @@
 
 import shutil
 import os
+import time
 import sys
 reload(sys)
 sys.setdefaultencoding('utf8')
 
 if sys.platform == 'win32':
-    os.environ["PATH"] = os.environ["PATH"] + "C:\\Program Files\\Git\\cmd;"
+    os.environ["PATH"] = os.environ["PATH"] + ";C:\\Program Files\\Git\\cmd;"
     os.environ["HOME"] = "C:\\Users\\app"
 from git import *
 
@@ -30,10 +31,7 @@ try:
 except Exception:
     commit_id = None
 g = Git(working_dir=git_path)
-config = g.config("-l").splitlines()
-if "user.email=jenkins@jingzhengu.com" not in config or "user.name=jenkins" not in config:
-    g.config("--global","user.email","jenkins@jingzhengu.com")
-    g.config("--global","user.name","jenkins")
+
 re_init = False
 try:
     g.rev_parse("--is-inside-work-tree")
@@ -55,17 +53,25 @@ except:
 if re_init:
     if os.path.isdir(git_path):
         shutil.rmtree(git_path)
-        os.makedirs(git_path)
     else:
         if os.path.exists(git_path):
             os.remove(git_path)
-        os.makedirs(git_path)
+    time.sleep(1)
+    os.makedirs(git_path)
+    config = g.config("-l").splitlines()
+    if "user.email=jenkins@jingzhengu.com" not in config or "user.name=jenkins" not in config:
+        g.config("--global", "user.email", "jenkins@jingzhengu.com")
+        g.config("--global", "user.name", "jenkins")
     g.init()
     g.remote("add", remote_repo_name, git_url)
     g.fetch(remote_repo_name)
     g.checkout(used_branch)
 else:
-    if operator =="rollback":
+    config = g.config("-l").splitlines()
+    if "user.email=jenkins@jingzhengu.com" not in config or "user.name=jenkins" not in config:
+        g.config("--global", "user.email", "jenkins@jingzhengu.com")
+        g.config("--global", "user.name", "jenkins")
+    if operator == "rollback":
         g.reset("--hard", commit_id)
     else:
         try:
