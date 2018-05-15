@@ -52,11 +52,16 @@ except:
     re_init = True
 if re_init:
     if os.path.isdir(git_path):
-        shutil.rmtree(git_path)
+        dir_list = os.listdir(git_path)
+        for d in dir_list:
+            f = git_path + d
+            if os.path.isdir(f):
+                shutil.rmtree(f)
+            elif os.path.isfile(f):
+                os.remove(f)
     else:
         if os.path.exists(git_path):
             os.remove(git_path)
-    time.sleep(1)
     os.makedirs(git_path)
     config = g.config("-l").splitlines()
     if "user.email=jenkins@jingzhengu.com" not in config or "user.name=jenkins" not in config:
