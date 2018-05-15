@@ -54,7 +54,7 @@ if re_init:
     if os.path.isdir(git_path):
         dir_list = os.listdir(git_path)
         for d in dir_list:
-            f = git_path + d
+            f = os.path.join(git_path,d)
             if os.path.isdir(f):
                 shutil.rmtree(f)
             elif os.path.isfile(f):
