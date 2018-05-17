@@ -16,7 +16,9 @@ import logging
 import jkoperation
 import gitlaboperation
 import publicmethod
+import socket
 
+socket.setdefaulttimeout(300)
 logger = logging.getLogger(__name__)
 
 # Create your views here.
@@ -71,7 +73,10 @@ def website_tag(request):
 def update_detail(request,operate):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
-    return render_to_response('update_detail.html',{'login_user': login_user, 'title': 'Web %s Result' % operate.capitalize()})
+    web_id = request.GET.get("web_id")
+    web_info = Website.objects.get(website_id=web_id)
+    web_name = web_info.name
+    return render_to_response('update_detail.html',{'login_user': login_user, 'title': '%s Web %s Result' % (web_name,operate.capitalize())})
 
 
 @accept_websocket
@@ -510,7 +515,9 @@ def history(request,web_id):
 def tomcat_operation(request,operation,web_id):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
-    return render_to_response('update_detail.html',{'login_user': login_user, 'title': 'Tomcat %s Result' % operation.capitalize()})
+    web_info = Website.objects.get(website_id=web_id)
+    web_name = web_info.name
+    return render_to_response('update_detail.html',{'login_user': login_user, 'title': '%s Tomcat %s Result' % (web_name,operation.capitalize())})
 
 
 @accept_websocket
@@ -584,7 +591,9 @@ def tomcat_op_result(request,operation,web_id):
 def build(request,web_id):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
-    return render_to_response('update_detail.html',{'login_user':login_user,'title':"Jenkins Build Result"})
+    web_info = Website.objects.get(website_id=web_id)
+    web_name = web_info.name
+    return render_to_response('update_detail.html',{'login_user':login_user,'title':"%s Build Result" % web_name})
 
 
 @accept_websocket
@@ -658,7 +667,8 @@ def build_socket(request,web_id,):
                             output = jk.get_build_output(jk_name.encode('utf8'),next_build_num)
                         except Exception,e:
                             if "Connection timed out" in e:
-                                if read_console_time_out > 5:
+                                logger.error("Jenkins Connection timed out")
+                                if read_console_time_out > 10:
                                     request.websocket.send("构建信息读取超时!\n")
                                     raise
                                 else:
