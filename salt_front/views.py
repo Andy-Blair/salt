@@ -648,53 +648,40 @@ def build_socket(request,web_id,):
                 request.websocket.send("构建失败,请联系管理员!\n")
                 raise
             if read_console:
-                try:
-                    while True:
-                        try:
-                            building = jk.build_status(jk_name.encode('utf8'),next_build_num)
-                            if building:
+                while True:
+                    try:
+                        building = jk.build_status(jk_name.encode('utf8'), next_build_num)
+                        if building:
+                            break
+                        else:
+                            time.sleep(1)
+                            continue
+                    except Exception:
+                        time.sleep(1)
+                        continue
+                pre = []
+                while True:
+                    try:
+                        output = jk.get_build_output(jk_name.encode('utf8'),next_build_num)
+                    except Exception:
+                        time.sleep(0.5)
+                        continue
+                    output_list = output.splitlines()
+                    tmp = [i.decode('gbk').encode('utf8') for i in output_list if i not in pre]
+                    if len(tmp) > 0:
+                        pre = output_list
+                        request.websocket.send("\n".join(tmp))
+                        request.websocket.send("\n")
+                        time.sleep(0.5)
+                    else:
+                        building = jk.build_status(jk_name.encode('utf8'),next_build_num)
+                        if building:
+                            time.sleep(1)
+                        else:
+                            if output_list[-1].startswith("Finished:"):
                                 break
                             else:
                                 time.sleep(1)
-                                continue
-                        except Exception:
-                            time.sleep(1)
-                            continue
-                    pre = []
-                    read_console_time_out = 0
-                    while True:
-                        try:
-                            output = jk.get_build_output(jk_name.encode('utf8'),next_build_num)
-                        except Exception,e:
-                            if "Connection timed out" in e:
-                                logger.error("Jenkins Connection timed out")
-                                if read_console_time_out > 10:
-                                    request.websocket.send("构建信息读取超时!\n")
-                                    raise
-                                else:
-                                    read_console_time_out += 1
-                                    time.sleep(1)
-                                    continue
-                            else:
-                                raise
-                        output_list = output.splitlines()
-                        tmp = [i.decode('gbk').encode('utf8') for i in output_list if i not in pre]
-                        if len(tmp) > 0:
-                            pre = output_list
-                            request.websocket.send("\n".join(tmp))
-                            request.websocket.send("\n")
-                        else:
-                            building = jk.build_status(jk_name.encode('utf8'),next_build_num)
-                            if building:
-                                time.sleep(1)
-                            else:
-                                if output_list[-1].startswith("Finished:"):
-                                    break
-                                else:
-                                    time.sleep(1)
-                except Exception:
-                    request.websocket.send("构建信息读取失败!\n")
-                    raise
             try:
                 build_result = jk.build_result(jk_name.encode('utf8'),next_build_num)
                 if build_result == "SUCCESS":
