@@ -328,7 +328,7 @@ def server_auth(request):
             except Exception:
                 return HttpResponse("%s 不存在" % ip)
             ip_group = exsit_ip.group.name
-            if ip_group not in user_group_names and ip_group != "超级管理员":
+            if ip_group not in user_group_names and user.username != "超级管理员":
                 return HttpResponse("%s 已经被使用" % ip)
         return HttpResponse()
 
@@ -600,7 +600,7 @@ def build(request,web_id):
 def build_socket(request,web_id,):
     if request.is_websocket():
         for soc_m in request.websocket:
-            tag_name = request.GET.get("tagname")
+            tag_name = request.GET.get("tagname").lower()
             tag_message = request.GET.get("tagmessage")
             web_info = Website.objects.get(website_id=web_id)
             proname = ".".join(web_info.git_url.split(":")[1].split(".")[:-1])
@@ -664,7 +664,14 @@ def build_socket(request,web_id,):
                     try:
                         output = jk.get_build_output(jk_name.encode('utf8'),next_build_num)
                     except Exception:
-                        time.sleep(0.5)
+                        try:
+                            building = jk.build_status(jk_name.encode('utf8'), next_build_num)
+                            if not building:
+                                request.websocket.send("\n\n警告：构建信息获取失败！\n\n")
+                                break
+                        except Exception:
+                            pass
+                        time.sleep(2)
                         continue
                     output_list = output.splitlines()
                     tmp = [i.decode('gbk').encode('utf8') for i in output_list if i not in pre]
@@ -672,16 +679,12 @@ def build_socket(request,web_id,):
                         pre = output_list
                         request.websocket.send("\n".join(tmp))
                         request.websocket.send("\n")
-                        time.sleep(0.5)
                     else:
                         building = jk.build_status(jk_name.encode('utf8'),next_build_num)
-                        if building:
-                            time.sleep(1)
-                        else:
+                        if not building:
                             if output_list[-1].startswith("Finished:"):
                                 break
-                            else:
-                                time.sleep(1)
+                    time.sleep(2)
             try:
                 build_result = jk.build_result(jk_name.encode('utf8'),next_build_num)
                 if build_result == "SUCCESS":
@@ -690,9 +693,13 @@ def build_socket(request,web_id,):
                     web_info.save()
                     request.websocket.send("正在创建Tag标签……\n")
                     tag = gl.create_tag(name="%s_%s" % (deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
-                    commit_id = tag.commit.id
-                    com = Commit(tag_name="%s_%s" % (deploy_env,tag_name),tag_message=tag_message,commit_id=commit_id,website=web_info)
-                    com.save()
+                    try:
+                        commit_id = tag.commit.id
+                        com = Commit(tag_name="%s_%s" % (deploy_env,tag_name),tag_message=tag_message,commit_id=commit_id,website=web_info)
+                        com.save()
+                    except Exception:
+                        tag.delete()
+                        raise
                     request.websocket.send("Tag标签创建成功！\n\n")
                     if web_info.merge_result == web_info.build_result == "success":
                         if web_info.type != "IIS":

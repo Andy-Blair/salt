@@ -19,10 +19,6 @@ lweb_path = "/apps/product/tomcat/webapps/"
 if sys.platform != 'win32':
     file_path = os.path.split(os.path.realpath(__file__))
     git_path = file_path[0] + "/%s" % file_path[1].split(".")[0]
-    if not os.path.isdir(git_path):
-        if os.path.exists(git_path):
-            os.remove(git_path)
-        os.mkdir(git_path+"/")
 used_branch = ""
 remote_repo_name = "online"
 operator = sys.argv[1]
@@ -62,7 +58,7 @@ if re_init:
     else:
         if os.path.exists(git_path):
             os.remove(git_path)
-    os.makedirs(git_path)
+        os.makedirs(git_path)
     config = g.config("-l").splitlines()
     if "user.email=jenkins@jingzhengu.com" not in config or "user.name=jenkins" not in config:
         g.config("--global", "user.email", "jenkins@jingzhengu.com")
@@ -84,9 +80,6 @@ else:
         except Exception:
             g.reset("--hard","%s/%s" % (remote_repo_name,used_branch))
             g.pull(remote_repo_name, used_branch)
-if sys.platform == 'win32':
-    os.popen("icacls %s /setowner app /T /C /L" % git_path)
-    os.popen("icacls %s /inheritance:e /T /C /L" % git_path)
 
 print g.log("-n","1").splitlines()[0].split()[1]
 
