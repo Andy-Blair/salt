@@ -27,6 +27,7 @@ class Website(models.Model):
     path = models.CharField(max_length=100)
     type = models.CharField(max_length=50)
     deploy_env = models.CharField(max_length=50)
+    deploy_status = models.IntegerField(default=0)  # 0-no deploy,1-deploying
     dev_branch = models.CharField(max_length=50)
     git_url = models.CharField(max_length=100,default="-")
     server = models.ManyToManyField(Servers)

@@ -11,10 +11,28 @@ $(function () {
                 return value
             }},
             {field: 'id', title: 'ID', align:'center', valign:'middle', visible:false},
+            {field: 'website_status', title: '部署状态', align:'center', valign:'middle', visible:false},
             {field: 'website_name', title: '站点名称', width:'',  align:'center', valign:'middle'},
             {field: 'website_env', title: '部署环境', width:'',  align:'center', valign:'middle'},
             {field: 'website_dev_branch', title: '开发分支', width:'',  align:'center', valign:'middle'},
-            {field: 'website_url', title: '站点域名', width:'',  align:'center', valign:'middle'},
+            {field: 'website_url', title: '站点域名', width:'',  align:'center', valign:'middle', formatter:function (value, row, index) {
+                if (row.website_status === 1){
+                    return value + '&nbsp&nbsp&nbsp<button class="button button-primary button-pill button-tiny finish_dep" style="padding-left: 10px;padding-right: 10px;margin-right: 5px">结束发布</button>'
+                } else {
+                    return value
+                }
+            },events: finish_dep={"click .finish_dep":function (e, value, row, index) {
+                $.post("/salt/website/fd/"+row['id']+"/",function (data) {
+                    if (data === "success"){
+                        alert("代码成功合并到Master分支");
+                        window.location.reload()
+                    } else {
+                        alert("代码合并到Master分支失败")
+                    }
+                }).fail(function () {
+                    alert("代码合并到Master分支失败")
+                })
+            }}},
             {field: 'website_type', title: '应用类型', width:'',  align:'center', valign:'middle'},
             {field: 'buttons', title: '', width:'170px',  align:'center', valign:'middle', events: tomcatEvents={
                 "click .tomcat":function (e, value, row, index) {

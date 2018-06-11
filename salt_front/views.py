@@ -84,7 +84,6 @@ def detail_socket(request,operate):
     if request.is_websocket():
         web_id = request.GET.get("web_id")
         tag_name = request.GET.get("tag_name")
-        # servers = request.GET.get("servers").split(",")
         if operate != "update" and operate != "rollback":
             request.websocket.send("错误的操作")
         else:
@@ -96,10 +95,7 @@ def detail_socket(request,operate):
                     apptype = web_info.type
                     sls_name = web_url.replace(".","_")
                     re_tomcat = False
-                    # web_servers_info = web_info.server.values()
                     web_server_ip = request.GET.get("servers").split(",")
-                    # for i in range(len(web_servers_info)):
-                    #     web_server_ip.append(web_servers_info[i]["ipaddress"])
                     cli = client.LocalClient()
                     request.websocket.send("正在更新......\n\n")
                     for i in web_server_ip:
@@ -142,25 +138,18 @@ def detail_socket(request,operate):
                             request.websocket.send("Comment:\n%s\n" % comment)
                             request.websocket.send("ERROR:\n%s\n" % stderr)
 
-                        # --- Read Tomcat Log. start ---
+                        # --- Read Tomcat Log start ---
                         if web_info.type.lower() == "tomcat" and re_tomcat:
                             war_folder = os.path.splitext(web_info.path)[0]
-                            # 配置远程服务器的IP，帐号，密码，端口等，因做了双机密钥信任，所以不需要密码
-                            r_user = "app"
-                            r_ip = i.strip()
-                            r_port = 22
-                            r_log = "/apps/product/tomcat/logs/catalina.out"  # tomcat的启动日志路径
-                            cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f -n 0 {log_path}".format(user=r_user, ip=r_ip, port=r_port, log_path=r_log)
-                            cmd_tstart = "/usr/bin/ssh -p {port} {user}@{ip} /apps/product/tomcat/bin/startup.sh".format(user=r_user, ip=r_ip, port=r_port)
-                            p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                            tom_stop_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
+                            ipadd = i.strip()
+                            tom_stop_re = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
                             logger.info("tomcat_stop_result %s" % tom_stop_re)
                             tom_stop_result = publicmethod.get_dval(tom_stop_re,'stdout')
                             tom_stop_false = False
                             if tom_stop_result is not None:
                                 if len(tom_stop_result) != 0:
                                     request.websocket.send(tom_stop_result+"\n\n")
-                                    del_war_folder_re = cli.cmd(tgt=r_ip, fun='cmd.run', arg=['rm -rf %s' % war_folder])
+                                    del_war_folder_re = cli.cmd(tgt=ipadd, fun='cmd.run', arg=['rm -rf %s' % war_folder])
                                     logger.info("del_war_folder_result %s" % del_war_folder_re)
                                 else:
                                     tom_stop_false = True
@@ -168,31 +157,30 @@ def detail_socket(request,operate):
                                 tom_stop_false = True
                             if tom_stop_false:
                                 request.websocket.send("Error: can't stop Tomcat")
-                                kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
-                                logger.info(kill_tail_re)
                                 break
-                            tomcat_start = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.tomcat_start'])
+                            read_result = cli.cmd_async(tgt=ipadd, fun="cmd.script",arg=['salt://pkg/script/read_tomcat.py'])
+                            logger.info("read_tom_log %s" % read_result)
+                            tomcat_start = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_start'])
                             logger.info("Tomcat_start_result %s" % tomcat_start)
                             start_result = publicmethod.get_dval(tomcat_start, "result")
                             if start_result is False:
                                 request.websocket.send("Tomcat start failed\n")
-                                kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
-                                logger.info("kill_tail_result %s " % kill_tail_re)
                                 continue
                             else:
                                 start_out = publicmethod.get_dval(tomcat_start, "stdout")
                                 request.websocket.send(start_out + "\n")
-
-                            while p_rlog.poll() == None:
-                                re_log = p_rlog.stdout.readline()
-                                request.websocket.send(re_log)
-                                if "Server startup in" in re_log:
-                                    break
-                            kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
-                            logger.info("kill_tail_result %s " % kill_tail_re)
-                            if publicmethod.get_dval(kill_tail_re, "result"):
-                                request.websocket.send("------Start End------")
-                        # --- Read Tomcat Log. end ---
+                                if read_result != 0:
+                                    while True:
+                                        read_log = cli.cmd(tgt=ipadd, fun='cmd.script', arg=['salt://pkg/script/read_log.py'])
+                                        log_con = publicmethod.get_dval(read_log, 'stdout')
+                                        if len(log_con) > 0:
+                                            request.websocket.send(log_con)
+                                            if "Server startup in" in log_con:
+                                                request.websocket.send("\n------Start End------\n")
+                                                break
+                                else:
+                                    request.websocket.send("Can't read tomcat log\n")
+                        # --- Read Tomcat Log end ---
                     break
                 except Exception:
                     request.websocket.send("更新失败,请联系管理员!")
@@ -410,6 +398,7 @@ def wesite_list(request):
                 web_type = i.type
                 d['website_type'] = web_type
                 d['website_env'] = i.deploy_env
+                d['website_status'] = i.deploy_status
                 d['website_dev_branch'] = i.dev_branch
                 server = i.server.values()
                 ips = []
@@ -435,6 +424,7 @@ def wesite_list(request):
                 d['website_url'] = web.url
                 d['website_type'] = web.type
                 d['website_env'] = web.deploy_env
+                d['website_status'] = web.deploy_status
                 d['website_dev_branch'] = web.dev_branch
                 init_fail = False
                 init_result = web.init_result
@@ -541,32 +531,28 @@ def tomcat_op_result(request,operation,web_id):
                             request.websocket.send("Tomcat already %s\n" % tomcat_statu)
                         elif tomcat_statu == "start" or tomcat_statu == "stop":
                             if operation.lower() == 'start':
-                                r_user = "app"
-                                r_ip = ipadd
-                                r_port = 22
-                                r_log = "/apps/product/tomcat/logs/catalina.out"  # tomcat的启动日志路径
-                                cmd_rlog = "/usr/bin/ssh -p {port} {user}@{ip} /usr/bin/tail -f -n 0 {log_path}".format(user=r_user,ip=r_ip,port=r_port,log_path=r_log)
-                                p_rlog = subprocess.Popen(cmd_rlog, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                                read_result = cli.cmd_async(tgt=ipadd, fun="cmd.script", arg=['salt://pkg/script/read_tomcat.py'])
+                                logger.info("read_tom_log %s" % read_result)
                                 tomcat_start = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_start'])
                                 logger.info("Tomcat_start_result %s" % tomcat_start)
                                 start_result = publicmethod.get_dval(tomcat_start,"result")
                                 if start_result is False:
                                     request.websocket.send("Tomcat start failed\n")
-                                    kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
-                                    logger.info("kill_tail_result %s " % kill_tail_re)
                                     continue
                                 else:
                                     start_out = publicmethod.get_dval(tomcat_start,"stdout")
                                     request.websocket.send(start_out+"\n")
-                                while p_rlog.poll() == None:
-                                    re_log = p_rlog.stdout.readline()
-                                    request.websocket.send(re_log)
-                                    if "Server startup in" in re_log:
-                                        break
-                                kill_tail_re = cli.cmd(tgt=r_ip, fun='state.sls', arg=['pkg.script.kill_tail'])
-                                logger.info("kill_tail_result %s " % kill_tail_re)
-                                if publicmethod.get_dval(kill_tail_re,"result"):
-                                    request.websocket.send("------Start End------")
+                                    if read_result != 0:
+                                        while True:
+                                            read_log = cli.cmd(tgt=ipadd, fun='cmd.script',arg=['salt://pkg/script/read_log.py'])
+                                            log_con = publicmethod.get_dval(read_log, 'stdout')
+                                            if len(log_con) > 0:
+                                                request.websocket.send(log_con)
+                                                if "Server startup in" in log_con:
+                                                    request.websocket.send("\n------Start End------\n")
+                                                    break
+                                    else:
+                                        request.websocket.send("Can't read tomcat log\n")
                             elif operation.lower() == 'stop':
                                 tom_stop_re = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
                                 logger.info("tomcat_stop_result %s" % tom_stop_re)
@@ -705,6 +691,7 @@ def build_socket(request,web_id,):
                         if web_info.type != "IIS":
                             web_info.merge_result = "-"
                         web_info.build_result = "-"
+                        web_info.deploy_status = 1
                         web_info.save()
                 else:
                     request.websocket.send("构建失败，不创建Tag标签！\n")
@@ -759,3 +746,18 @@ def re_init(request):
     else:
         return HttpResponse("Reinit Failer")
     return HttpResponse("Reinit End")
+
+
+@login_required(login_url=login_url)
+def finish_dep(request,web_id):
+    web_info = Website.objects.get(website_id=web_id)
+    git_path = web_info.git_url
+    gpname = ".".join(git_path.split(":")[1].split(".")[0:-1])
+    gl = gitlaboperation.Gitlaboperation(proname=gpname)
+    merge = gl.merge_branch(source="online", target="master", title="merge online to master")
+    if merge:
+        web_info.deploy_status = 0
+        web_info.save()
+        return HttpResponse("success")
+    else:
+        return HttpResponse("failer")

@@ -48,6 +48,7 @@ urlpatterns = [
     url(r'^website/build/(\d+)/$',views.build,name='jk_build'),
     url(r'^website/build/(\d+)/s/$',views.build_socket,name='jk_build'),
     url(r'^website/reinit/$',views.re_init,name='re_init'),
+    url(r'^website/fd/(\d+)/$',views.finish_dep,name='finish_dep'),
 ]
 
 # urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
