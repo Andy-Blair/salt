@@ -316,7 +316,7 @@ def server_auth(request):
             except Exception:
                 return HttpResponse("%s 不存在" % ip)
             ip_group = exsit_ip.group.name
-            if ip_group not in user_group_names and user.username != "超级管理员":
+            if ip_group not in user_group_names and user.username != "超级管理员" and ip_group != "超级管理员":
                 return HttpResponse("%s 已经被使用" % ip)
         return HttpResponse()
 
