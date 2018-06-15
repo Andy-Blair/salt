@@ -604,13 +604,16 @@ def build_socket(request,web_id,):
                     request.websocket.send("online分支创建失败，请联系管理员!\n\n")
             try:
                 request.websocket.send("正在将开发分支%s合并到online分支……\n" % web_info.dev_branch.encode('utf8'))
-                merge = gl.merge_branch(source=dev_branch, target=build_branch,title="merge %s to %s" % (dev_branch, build_branch))
-                if merge:
-                    request.websocket.send("分支合并成功！\n\n")
-                    web_info.merge_result = "success"
-                    web_info.build_result = "-"
-                    web_info.create_tag_result = "-"
-                    web_info.save()
+                if web_info.type != "IIS":
+                    merge = gl.merge_branch(source=dev_branch, target=build_branch,title="merge %s to %s" % (dev_branch, build_branch))
+                    if merge:
+                        request.websocket.send("分支合并成功！\n\n")
+                        web_info.merge_result = "success"
+                        web_info.build_result = "-"
+                        web_info.create_tag_result = "-"
+                        web_info.save()
+                else:
+                    request.websocket.send("IIS项目暂时跳过合并分支！\n\n")
             except Exception:
                 merge_result = web_info.merge_result
                 if merge_result == "success":

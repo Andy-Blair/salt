@@ -2,6 +2,9 @@
 from salt import client
 import os
 import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 
 logger = logging.getLogger(__name__)
 
@@ -116,3 +119,24 @@ def create_pro_file(web, servers):
     else:
         init = "failer"
     return init
+
+
+def send_mail(recver,content):
+    '''
+    :param recver: type:List,receve user list
+    :param content: string
+    '''
+    sender = "monitor@jingzhengu.com"
+    message = MIMEText(content, 'plain', 'utf-8')
+    message['Form'] = Header(sender, "utf-8")
+    message['To'] = Header(";".join(recver), 'utf-8')
+    subject = '上线通知'
+    message['Subject'] = Header(subject, 'utf-8')
+    try:
+        smtpObj = smtplib.SMTP(host="mail.jingzhengu.com", port=25)
+        smtpObj.sendmail(sender, recver, message.as_string())
+        smtpObj.quit()
+        logger.info("邮件发送成功")
+    except smtplib.SMTPException as e:
+        logger.error("邮件发送失败")
+        logger.error(e)

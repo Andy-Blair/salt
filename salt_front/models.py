@@ -74,3 +74,11 @@ class Jenkins(models.Model):
 
     def __unicode__(self):
         return self.jk_name
+
+
+class Email_user(models.Model):
+    em_id = models.AutoField(primary_key=True)
+    email = models.EmailField(unique=True)
+
+    def __unicode__(self):
+        return self.email
