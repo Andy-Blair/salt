@@ -181,7 +181,10 @@ $(function () {
     $("#build").click(function () {
         var row_data=$('#website_list').bootstrapTable('getSelections');
         if (Object.keys(row_data).length!==0){
-            $("#tag_name").val("");
+            $.post("/salt/website/nt/"+row_data[0]['id']+"/",function (data, status) {
+                $("#tag_name").val(data);
+                $("#tag_name").attr("readonly","readonly");
+            });
             $("#tag_message").val("");
             $('#modal-tag').modal('toggle');
         }
@@ -191,7 +194,10 @@ $(function () {
         var tag_name=$("#tag_name").val();
         var tag_message=$("#tag_message").val();
         if (tag_name.length>0 && tag_message.length>0){
-            $.post("/salt/website/add/tagname/auth",{tag_name:tag_name,web_id:row_data[0]['id']},function (data, status) {
+            if ($.trim(tag_name) === $.trim(tag_message)){
+                alert("上线内容不可以写Tag名称")
+            }else {
+                $.post("/salt/website/add/tagname/auth",{tag_name:tag_name,web_id:row_data[0]['id']},function (data, status) {
                 if(data === "exsit"){
                     alert("Tag Name已经存在");
                     return false
@@ -200,6 +206,7 @@ $(function () {
                     $('#modal-tag').modal('hide');
                 }
             });
+            }
         }else {
             alert("Tag Name或者Message没有填写");
             return false

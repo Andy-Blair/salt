@@ -16,7 +16,11 @@ class WebsiteAdmin(admin.ModelAdmin):
 class ServicesAdmin(admin.ModelAdmin):
     list_display = ('name','belong')
 
+class Email_userAdmin(admin.ModelAdmin):
+    list_display = ('email','send')
+
 
 admin.site.register(Servers,ServersAdmin)
 admin.site.register(Services,ServicesAdmin)
 admin.site.register(Website,WebsiteAdmin)
+admin.site.register(Email_user,Email_userAdmin)

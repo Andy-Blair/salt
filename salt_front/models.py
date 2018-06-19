@@ -35,6 +35,8 @@ class Website(models.Model):
     merge_result = models.CharField(max_length=50,default="-")
     build_result = models.CharField(max_length=50,default="-")
     create_tag_result = models.CharField(max_length=50,default="-")
+    send_email = models.BooleanField(default=True)
+    last_comit = models.CharField(max_length=100,default="-")
 
     def __unicode__(self):
         return self.name
@@ -78,7 +80,8 @@ class Jenkins(models.Model):
 
 class Email_user(models.Model):
     em_id = models.AutoField(primary_key=True)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True,max_length=100)
+    send = models.BooleanField(default=True)
 
     def __unicode__(self):
         return self.email

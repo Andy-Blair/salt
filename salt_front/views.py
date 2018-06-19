@@ -17,6 +17,7 @@ import jkoperation
 import gitlaboperation
 import publicmethod
 import socket
+import datetime
 
 socket.setdefaulttimeout(300)
 logger = logging.getLogger(__name__)
@@ -84,13 +85,23 @@ def detail_socket(request,operate):
     if request.is_websocket():
         web_id = request.GET.get("web_id")
         tag_name = request.GET.get("tag_name")
+        web_info = Website.objects.get(website_id=web_id)
+        if web_info.send_email:
+            emails = Email_user.objects.all()
+            receiver = []
+            for em in emails:
+                if em.send:
+                    receiver.append(em.email)
+            tag_mes = Commit.objects.get(commit_id=web_info.last_comit).tag_message
+            content = "名称：%s\n\n上线内容：\n%s\n" % (web_info.name, tag_mes)
+            publicmethod.send_mail(receiver,content)
         if operate != "update" and operate != "rollback":
             request.websocket.send("错误的操作")
         else:
             for soc_m in request.websocket:
                 try:
                     operate = operate
-                    web_info = Website.objects.get(website_id=web_id)
+
                     web_url = web_info.url
                     apptype = web_info.type
                     sls_name = web_url.replace(".","_")
@@ -686,6 +697,8 @@ def build_socket(request,web_id,):
                         commit_id = tag.commit.id
                         com = Commit(tag_name="%s_%s" % (deploy_env,tag_name),tag_message=tag_message,commit_id=commit_id,website=web_info)
                         com.save()
+                        web_info.last_comit = tag.commit.id
+                        web_info.save()
                     except Exception:
                         tag.delete()
                         raise
@@ -764,3 +777,18 @@ def finish_dep(request,web_id):
         return HttpResponse("success")
     else:
         return HttpResponse("failer")
+
+
+@login_required(login_url=login_url)
+def next_tag(request,web_id):
+    web_info = Website.objects.get(website_id=web_id)
+    tag_name = Commit.objects.get(commit_id=web_info.last_comit).tag_name.lower()
+    tag_sp = tag_name.split("_")[1].split("v")
+    tag_date = tag_sp[0]
+    tag_nu = tag_sp[1]
+    cur_date = datetime.datetime.now().strftime("%Y%m%d")
+    if cur_date == tag_date:
+        next_tagname = "%sv%s" % (tag_date,int(tag_nu)+1)
+    else:
+        next_tagname = "%sv1" % cur_date
+    return HttpResponse(next_tagname)
