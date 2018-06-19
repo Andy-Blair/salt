@@ -782,10 +782,13 @@ def finish_dep(request,web_id):
 @login_required(login_url=login_url)
 def next_tag(request,web_id):
     web_info = Website.objects.get(website_id=web_id)
-    tag_name = Commit.objects.get(commit_id=web_info.last_comit).tag_name.lower()
-    tag_sp = tag_name.split("_")[1].split("v")
-    tag_date = tag_sp[0]
-    tag_nu = tag_sp[1]
+    try:
+        tag_name = Commit.objects.get(commit_id=web_info.last_comit).tag_name.lower()
+        tag_sp = tag_name.split("_")[1].split("v")
+        tag_date = tag_sp[0]
+        tag_nu = tag_sp[1]
+    except Exception:
+        tag_date = None
     cur_date = datetime.datetime.now().strftime("%Y%m%d")
     if cur_date == tag_date:
         next_tagname = "%sv%s" % (tag_date,int(tag_nu)+1)
