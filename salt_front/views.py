@@ -4,13 +4,12 @@
 from django.shortcuts import render_to_response, HttpResponse, HttpResponseRedirect, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from models import *
 from salt import client
 import json
 from dwebsocket import accept_websocket
 import os
-import subprocess
 import time
 import logging
 import jkoperation
@@ -83,6 +82,8 @@ def update_detail(request,operate):
 @accept_websocket
 def detail_socket(request,operate):
     if request.is_websocket():
+        user = User.objects.get(id=request.session['_auth_user_id'])
+        user_name = user.last_name + user.first_name
         web_id = request.GET.get("web_id")
         tag_name = request.GET.get("tag_name")
         web_info = Website.objects.get(website_id=web_id)
@@ -92,24 +93,24 @@ def detail_socket(request,operate):
             for em in emails:
                 if em.send:
                     receiver.append(em.email)
-            tag_mes = Commit.objects.get(commit_id=web_info.last_comit).tag_message
-            content = "名称：%s\n\n上线内容：\n%s\n" % (web_info.name, tag_mes)
-            publicmethod.send_mail(receiver,content)
+            will_send = True
+        else:
+            receiver = []
+            will_send = False
         if operate != "update" and operate != "rollback":
             request.websocket.send("错误的操作")
         else:
             for soc_m in request.websocket:
-                try:
-                    operate = operate
-
-                    web_url = web_info.url
-                    apptype = web_info.type
-                    sls_name = web_url.replace(".","_")
-                    re_tomcat = False
-                    web_server_ip = request.GET.get("servers").split(",")
-                    cli = client.LocalClient()
-                    request.websocket.send("正在更新......\n\n")
-                    for i in web_server_ip:
+                operate = operate
+                web_url = web_info.url
+                apptype = web_info.type
+                sls_name = web_url.replace(".","_")
+                re_tomcat = False
+                web_server_ip = request.GET.get("servers").split(",")
+                cli = client.LocalClient()
+                request.websocket.send("正在更新......\n\n")
+                for i in web_server_ip:
+                    try:
                         request.websocket.send("\n%s:\n" % i.strip().encode('utf8'))
                         if operate == "update":
                             sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_update' % (sls_name, sls_name)])
@@ -142,60 +143,67 @@ def detail_socket(request,operate):
                             request.websocket.send("\nTag Name:\n%s\n" % com.tag_name.encode('utf8'))
                             request.websocket.send("\nMessage:\n%s\n" % com.tag_message.encode('utf8'))
                             request.websocket.send("\n------更新完成！------\n\n")
+                            tag_mes = com.tag_message
                         else:
                             stderr = publicmethod.get_dval(sync_re,"stderr")
                             comment = publicmethod.get_dval(sync_re,"comment")
                             request.websocket.send("错误信息：\n")
                             request.websocket.send("Comment:\n%s\n" % comment)
                             request.websocket.send("ERROR:\n%s\n" % stderr)
-
-                        # --- Read Tomcat Log start ---
-                        if web_info.type.lower() == "tomcat" and re_tomcat:
-                            war_folder = os.path.splitext(web_info.path)[0]
-                            ipadd = i.strip()
-                            tom_stop_re = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
-                            logger.info("tomcat_stop_result %s" % tom_stop_re)
-                            tom_stop_result = publicmethod.get_dval(tom_stop_re,'stdout')
-                            tom_stop_false = False
-                            if tom_stop_result is not None:
-                                if len(tom_stop_result) != 0:
-                                    request.websocket.send(tom_stop_result+"\n\n")
-                                    del_war_folder_re = cli.cmd(tgt=ipadd, fun='cmd.run', arg=['rm -rf %s' % war_folder])
-                                    logger.info("del_war_folder_result %s" % del_war_folder_re)
-                                else:
-                                    tom_stop_false = True
+                            tag_mes = stderr
+                    except Exception:
+                        request.websocket.send("更新失败,请联系管理员!")
+                        tag_mes = "更新失败"
+                        raise
+                    finally:
+                        if will_send:
+                            content = "操作人：%s\n\n操作类型：%s\n\n项目：%s\n\n详细信息：\n%s\n" % (user_name, operate, web_info.name, tag_mes)
+                            publicmethod.send_mail(receiver, content)
+                            will_send = False
+                    # --- Read Tomcat Log start ---
+                    if web_info.type.lower() == "tomcat" and re_tomcat:
+                        war_folder = os.path.splitext(web_info.path)[0]
+                        ipadd = i.strip()
+                        tom_stop_re = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_shutdown'])
+                        logger.info("tomcat_stop_result %s" % tom_stop_re)
+                        tom_stop_result = publicmethod.get_dval(tom_stop_re,'stdout')
+                        tom_stop_false = False
+                        if tom_stop_result is not None:
+                            if len(tom_stop_result) != 0:
+                                request.websocket.send(tom_stop_result+"\n\n")
+                                del_war_folder_re = cli.cmd(tgt=ipadd, fun='cmd.run', arg=['rm -rf %s' % war_folder])
+                                logger.info("del_war_folder_result %s" % del_war_folder_re)
                             else:
                                 tom_stop_false = True
-                            if tom_stop_false:
-                                request.websocket.send("Error: can't stop Tomcat")
-                                break
-                            read_result = cli.cmd_async(tgt=ipadd, fun="cmd.script",arg=['salt://pkg/script/read_tomcat.py'])
-                            logger.info("read_tom_log %s" % read_result)
-                            tomcat_start = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_start'])
-                            logger.info("Tomcat_start_result %s" % tomcat_start)
-                            start_result = publicmethod.get_dval(tomcat_start, "result")
-                            if start_result is False:
-                                request.websocket.send("Tomcat start failed\n")
-                                continue
+                        else:
+                            tom_stop_false = True
+                        if tom_stop_false:
+                            request.websocket.send("Error: can't stop Tomcat")
+                            break
+                        read_result = cli.cmd_async(tgt=ipadd, fun="cmd.script",arg=['salt://pkg/script/read_tomcat.py'])
+                        logger.info("read_tom_log %s" % read_result)
+                        tomcat_start = cli.cmd(tgt=ipadd, fun='state.sls', arg=['pkg.script.tomcat_start'])
+                        logger.info("Tomcat_start_result %s" % tomcat_start)
+                        start_result = publicmethod.get_dval(tomcat_start, "result")
+                        if start_result is False:
+                            request.websocket.send("Tomcat start failed\n")
+                            continue
+                        else:
+                            start_out = publicmethod.get_dval(tomcat_start, "stdout")
+                            request.websocket.send(start_out + "\n")
+                            if read_result != 0:
+                                while True:
+                                    read_log = cli.cmd(tgt=ipadd, fun='cmd.script', arg=['salt://pkg/script/read_log.py'])
+                                    log_con = publicmethod.get_dval(read_log, 'stdout')
+                                    if len(log_con) > 0:
+                                        request.websocket.send(log_con)
+                                        if "Server startup in" in log_con:
+                                            request.websocket.send("\n------Start End------\n")
+                                            break
                             else:
-                                start_out = publicmethod.get_dval(tomcat_start, "stdout")
-                                request.websocket.send(start_out + "\n")
-                                if read_result != 0:
-                                    while True:
-                                        read_log = cli.cmd(tgt=ipadd, fun='cmd.script', arg=['salt://pkg/script/read_log.py'])
-                                        log_con = publicmethod.get_dval(read_log, 'stdout')
-                                        if len(log_con) > 0:
-                                            request.websocket.send(log_con)
-                                            if "Server startup in" in log_con:
-                                                request.websocket.send("\n------Start End------\n")
-                                                break
-                                else:
-                                    request.websocket.send("Can't read tomcat log\n")
-                        # --- Read Tomcat Log end ---
-                    break
-                except Exception:
-                    request.websocket.send("更新失败,请联系管理员!")
-                    raise
+                                request.websocket.send("Can't read tomcat log\n")
+                    # --- Read Tomcat Log end ---
+                break
         request.websocket.close()
 
 
@@ -226,7 +234,6 @@ def website_detail(request,web_id):
 @login_required(login_url=login_url)
 def website_add(request):
     user = User.objects.get(id=request.session['_auth_user_id'])
-    group = user.groups.last()
     login_user = user.last_name + user.first_name
     if request.method == "GET":
         return render_to_response('website_add.html', {'login_user':login_user})
@@ -242,8 +249,7 @@ def website_add(request):
         for ip in rec_data['serverip'].split(','):
             web.server.add(Servers.objects.get(ipaddress=ip))
             server = Servers.objects.get(ipaddress=ip)
-            server.group = group
-            server.describe = group.name
+            server.user = user
             server.save()
         jk = Jenkins(jk_name=rec_data['jk_name'],website=web)
         jk.save()
@@ -319,15 +325,13 @@ def server_auth(request):
     if request.method == "POST":
         rec_data = request.POST
         user = User.objects.get(id=request.session['_auth_user_id'])
-        user_groups = user.groups.all()
-        user_group_names = [g.name for g in user_groups]
         for ip in rec_data['ipaddress'].split(','):
             try:
                 exsit_ip = Servers.objects.get(ipaddress=ip)
             except Exception:
                 return HttpResponse("%s 不存在" % ip)
-            ip_group = exsit_ip.group.name
-            if ip_group not in user_group_names and user.username != "超级管理员" and ip_group != "超级管理员":
+            ip_user = exsit_ip.user.username
+            if ip_user != user.username and ip_user != "admin":
                 return HttpResponse("%s 已经被使用" % ip)
         return HttpResponse()
 
@@ -377,17 +381,13 @@ def website_del(request,web_id):
 
 
 @login_required(login_url=login_url)
-def wesite_list(request):
+def website_list(request):
     if request.method == "POST":
         user = User.objects.get(id=request.session['_auth_user_id'])
-        groups = user.groups.all()
         data = []
         web_id = []
         show_all = False
-        group_names = []
-        for group in groups:
-            group_names.append(group.name)
-        if "超级管理员".decode('utf8') in group_names:
+        if user.username == "admin":
             show_all = True
         if show_all:
             wesite = Website.objects.all()
@@ -420,12 +420,11 @@ def wesite_list(request):
                 d['website_server'] = ','.join(ips)
                 data.append(d)
         else:
-            for group in groups:
-                servers = group.servers_set.all()
-                for server in servers:
-                    website_info = server.website_set.all()
-                    for web in website_info:
-                        web_id.append(web.website_id)
+            servers = user.servers_set.all()
+            for server in servers:
+                website_info = server.website_set.all()
+                for web in website_info:
+                    web_id.append(web.website_id)
             web_ids = list(set(web_id))
             for i in web_ids:
                 web = Website.objects.get(website_id=i)
@@ -463,11 +462,7 @@ def wesite_list(request):
 def server_manage(request):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
-    groups = user.groups.all()
-    group_names = []
-    for group in groups:
-        group_names.append(group.name)
-    if "超级管理员".decode('utf8') not in group_names:
+    if user.username != "admin":
         return HttpResponseRedirect('/')
     if request.method == "POST":
         cli = client.LocalClient()
@@ -477,7 +472,7 @@ def server_manage(request):
             if exsit:
                 continue
             else:
-                server = Servers(ipaddress=k,ostype=v['os'],group=Group.objects.get(name="超级管理员"))
+                server = Servers(ipaddress=k, ostype=v['os'], user=user)
                 server.save()
         return HttpResponse()
     return render_to_response('server_manage.html',{'login_user':login_user})

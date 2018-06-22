@@ -2,7 +2,7 @@
 # from __future__ import unicode_literals
 
 from django.db import models
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import User
 
 # Create your models here.
 
@@ -12,8 +12,8 @@ class Servers(models.Model):
     server_id = models.AutoField(primary_key=True)
     ipaddress = models.CharField(max_length=50,unique=True)
     ostype = models.CharField(max_length=50)
-    describe = models.CharField(max_length=200)
-    group = models.ForeignKey(Group)
+    describe = models.CharField(max_length=200, null=True)
+    user = models.ForeignKey(User)
 
     def __unicode__(self):
         return self.ipaddress
