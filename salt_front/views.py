@@ -330,8 +330,9 @@ def server_auth(request):
                 exsit_ip = Servers.objects.get(ipaddress=ip)
             except Exception:
                 return HttpResponse("%s 不存在" % ip)
-            ip_user = exsit_ip.user.username
-            if ip_user != user.username and ip_user != "admin":
+            ip_user = exsit_ip.user.all()
+            user_l = [u.username for u in ip_user]
+            if user.username not in user_l and ip_user != "admin":
                 return HttpResponse("%s 已经被使用" % ip)
         return HttpResponse()
 
