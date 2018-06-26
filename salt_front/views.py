@@ -332,7 +332,7 @@ def server_auth(request):
                 return HttpResponse("%s 不存在" % ip)
             ip_user = exsit_ip.user.all()
             user_l = [u.username for u in ip_user]
-            if user.username not in user_l and ip_user != "admin":
+            if user.username not in user_l and user.username != "admin":
                 return HttpResponse("%s 已经被使用" % ip)
         return HttpResponse()
 
