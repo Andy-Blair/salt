@@ -13,7 +13,7 @@ class Servers(models.Model):
     ipaddress = models.CharField(max_length=50,unique=True)
     ostype = models.CharField(max_length=50)
     describe = models.CharField(max_length=200, null=True)
-    user = models.ForeignKey(User)
+    user = models.ManyToManyField(User)
 
     def __unicode__(self):
         return self.ipaddress
