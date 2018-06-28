@@ -249,8 +249,7 @@ def website_add(request):
         for ip in rec_data['serverip'].split(','):
             web.server.add(Servers.objects.get(ipaddress=ip))
             server = Servers.objects.get(ipaddress=ip)
-            server.user = user
-            server.save()
+            server.user.add(user)
         jk = Jenkins(jk_name=rec_data['jk_name'],website=web)
         jk.save()
         return HttpResponseRedirect('/salt/website_manage/')
