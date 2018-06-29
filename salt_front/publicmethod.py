@@ -127,7 +127,7 @@ def send_mail(recver,content):
     :param content: string
     '''
     sender = "monitor@jingzhengu.com"
-    message = MIMEText(content, 'plain', 'utf-8')
+    message = MIMEText(content, 'html', 'utf-8')
     message['Form'] = Header(sender, "utf-8")
     message['To'] = Header(";".join(recver), 'utf-8')
     subject = '上线通知'

@@ -86,6 +86,7 @@ def detail_socket(request,operate):
         user_name = user.last_name + user.first_name
         web_id = request.GET.get("web_id")
         tag_name = request.GET.get("tag_name")
+        dep_con = request.GET.get("dep")
         web_info = Website.objects.get(website_id=web_id)
         if web_info.send_email:
             emails = Email_user.objects.all()
@@ -140,24 +141,26 @@ def detail_socket(request,operate):
                             request.websocket.send("------当前版本信息------\n")
                             stdout = publicmethod.get_dval(sync_re,"stdout")
                             com = Commit.objects.get(commit_id=stdout.strip())
-                            request.websocket.send("\nTag Name:\n%s\n" % com.tag_name.encode('utf8'))
-                            request.websocket.send("\nMessage:\n%s\n" % com.tag_message.encode('utf8'))
-                            request.websocket.send("\n------更新完成！------\n\n")
+                            tagname = com.tag_name
                             tag_mes = com.tag_message
+                            request.websocket.send("\nTag Name:\n%s\n" % tagname.encode('utf8'))
+                            request.websocket.send("\nMessage:\n%s\n" % tag_mes.encode('utf8'))
+                            request.websocket.send("\n------更新完成！------\n\n")
+                            mes = "Tag名称：%s<br/><br/>Tag信息：<br/>%s<br/>" % (tagname, tag_mes)
                         else:
                             stderr = publicmethod.get_dval(sync_re,"stderr")
                             comment = publicmethod.get_dval(sync_re,"comment")
                             request.websocket.send("错误信息：\n")
                             request.websocket.send("Comment:\n%s\n" % comment)
                             request.websocket.send("ERROR:\n%s\n" % stderr)
-                            tag_mes = stderr
+                            mes = stderr
                     except Exception:
                         request.websocket.send("更新失败,请联系管理员!")
-                        tag_mes = "更新失败"
+                        mes = "更新失败"
                         raise
                     finally:
                         if will_send:
-                            content = "操作人：%s\n\n操作类型：%s\n\n项目：%s\n\n详细信息：\n%s\n" % (user_name, operate, web_info.name, tag_mes)
+                            content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>更新原因：<br/>%s<br/><br/>详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, dep_con, mes)
                             publicmethod.send_mail(receiver, content)
                             will_send = False
                     # --- Read Tomcat Log start ---
@@ -248,8 +251,7 @@ def website_add(request):
         web.save()
         for ip in rec_data['serverip'].split(','):
             web.server.add(Servers.objects.get(ipaddress=ip))
-            server = Servers.objects.get(ipaddress=ip)
-            server.user.add(user)
+            web.user.add(user)
         jk = Jenkins(jk_name=rec_data['jk_name'],website=web)
         jk.save()
         return HttpResponseRedirect('/salt/website_manage/')
@@ -310,6 +312,8 @@ def website_modify(request,web_id):
             webinfo.dev_branch = rec_data['dev_branch']
             webinfo.save()
             webinfo.server.clear()
+            for s in webinfo.server.all():
+                webinfo.server.remove(s)
             for ip in rec_data['serverip'].split(','):
                 webinfo.server.add(Servers.objects.get(ipaddress=ip))
             webinfo.save()
@@ -323,16 +327,11 @@ def website_modify(request,web_id):
 def server_auth(request):
     if request.method == "POST":
         rec_data = request.POST
-        user = User.objects.get(id=request.session['_auth_user_id'])
         for ip in rec_data['ipaddress'].split(','):
             try:
                 exsit_ip = Servers.objects.get(ipaddress=ip)
             except Exception:
                 return HttpResponse("%s 不存在" % ip)
-            ip_user = exsit_ip.user.all()
-            user_l = [u.username for u in ip_user]
-            if user.username not in user_l and user.username != "admin":
-                return HttpResponse("%s 已经被使用" % ip)
         return HttpResponse()
 
 
@@ -385,7 +384,6 @@ def website_list(request):
     if request.method == "POST":
         user = User.objects.get(id=request.session['_auth_user_id'])
         data = []
-        web_id = []
         show_all = False
         if user.username == "admin":
             show_all = True
@@ -420,14 +418,8 @@ def website_list(request):
                 d['website_server'] = ','.join(ips)
                 data.append(d)
         else:
-            servers = user.servers_set.all()
-            for server in servers:
-                website_info = server.website_set.all()
-                for web in website_info:
-                    web_id.append(web.website_id)
-            web_ids = list(set(web_id))
-            for i in web_ids:
-                web = Website.objects.get(website_id=i)
+            webs = user.website_set.all()
+            for web in webs:
                 d = {}
                 d['id'] = web.website_id
                 d['website_name'] = web.name
@@ -467,7 +459,7 @@ def server_manage(request):
     if request.method == "POST":
         cli = client.LocalClient()
         re_id = cli.cmd(tgt='*',fun='grains.item',arg= ['os'])
-        for k , v in re_id.items():
+        for k, v in re_id.items():
             exsit = Servers.objects.filter(ipaddress=k)
             if exsit:
                 continue
@@ -519,8 +511,6 @@ def tomcat_operation(request,operation,web_id):
 @accept_websocket
 def tomcat_op_result(request,operation,web_id):
     if request.is_websocket():
-        # web_info = Website.objects.get(website_id=web_id)
-        # web_servers_info = web_info.server.values()
         web_server_ip = request.GET.get("servers").split(",")
         cli = client.LocalClient()
         for soc_m in request.websocket:
