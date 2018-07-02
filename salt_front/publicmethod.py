@@ -5,6 +5,8 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
+import random
+import string
 
 logger = logging.getLogger(__name__)
 
@@ -140,3 +142,8 @@ def send_mail(recver,content):
     except smtplib.SMTPException as e:
         logger.error("邮件发送失败")
         logger.error(e)
+
+
+def create_random_str():
+    r = ''.join(random.sample(string.ascii_letters + string.digits, 6))
+    return r

@@ -88,7 +88,7 @@ def detail_socket(request,operate):
         tag_name = request.GET.get("tag_name")
         dep_con = request.GET.get("dep")
         web_info = Website.objects.get(website_id=web_id)
-        if web_info.send_email:
+        if web_info.send_email and web_info.notify:
             emails = Email_user.objects.all()
             receiver = []
             for em in emails:
@@ -160,9 +160,12 @@ def detail_socket(request,operate):
                         raise
                     finally:
                         if will_send:
-                            content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>更新原因：<br/>%s<br/><br/>详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, dep_con, mes)
+                            content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>更新原因：<br/>%s<br/><br/>" \
+                                      "详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, dep_con, mes)
                             publicmethod.send_mail(receiver, content)
                             will_send = False
+                            web_info.notify = False
+                            web_info.save()
                     # --- Read Tomcat Log start ---
                     if web_info.type.lower() == "tomcat" and re_tomcat:
                         war_folder = os.path.splitext(web_info.path)[0]
@@ -246,12 +249,20 @@ def website_add(request):
             web_path = rec_data['web_path'] + rec_data['war_name']
         else:
             web_path = rec_data['web_path']
+        ident = "-"
+        while True:
+            ident = publicmethod.create_random_str()
+            try:
+                ide_ex = Website.objects.get(ident=ident)
+            except Exception:
+                break
         web = Website(name=rec_data['web_name'],url=rec_data['web_url'],path=web_path,dev_branch=rec_data['dev_branch'],
-                      type=rec_data['apptype'],git_url=rec_data['web_git_url'],deploy_env=rec_data['deploy_env'])
+                      type=rec_data['apptype'],git_url=rec_data['web_git_url'],deploy_env=rec_data['deploy_env'],
+                      ident=ident)
         web.save()
+        web.user.add(user)
         for ip in rec_data['serverip'].split(','):
             web.server.add(Servers.objects.get(ipaddress=ip))
-            web.user.add(user)
         jk = Jenkins(jk_name=rec_data['jk_name'],website=web)
         jk.save()
         return HttpResponseRedirect('/salt/website_manage/')
@@ -361,7 +372,7 @@ def tagname_auth(request):
         rec_data = request.POST
         web = Website.objects.get(website_id=rec_data["web_id"])
         proname = ".".join(web.git_url.split(":")[1].split(".")[:-1])
-        tag_name = "%s_%s" %(web.deploy_env,rec_data["tag_name"])
+        tag_name = "%s_%s_%s" %(web.ident,web.deploy_env,rec_data["tag_name"])
         gl = gitlaboperation.Gitlaboperation(proname)
         tags = [tag.name for tag in gl.get_tags()]
         if tag_name in tags:
@@ -677,12 +688,13 @@ def build_socket(request,web_id,):
                     web_info.build_result = "success"
                     web_info.save()
                     request.websocket.send("正在创建Tag标签……\n")
-                    tag = gl.create_tag(name="%s_%s" % (deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
+                    tag = gl.create_tag(name="%s_%s_%s" % (web_info.ident,deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
                     try:
                         commit_id = tag.commit.id
-                        com = Commit(tag_name="%s_%s" % (deploy_env,tag_name),tag_message=tag_message,commit_id=commit_id,website=web_info)
+                        com = Commit(tag_name="%s_%s_%s" % (web_info.ident,deploy_env,tag_name),tag_message=tag_message,commit_id=commit_id,website=web_info)
                         com.save()
                         web_info.last_comit = tag.commit.id
+                        web_info.notify = True
                         web_info.save()
                     except Exception:
                         tag.delete()
@@ -769,7 +781,7 @@ def next_tag(request,web_id):
     web_info = Website.objects.get(website_id=web_id)
     try:
         tag_name = Commit.objects.get(commit_id=web_info.last_comit).tag_name.lower()
-        tag_sp = tag_name.split("_")[1].split("v")
+        tag_sp = tag_name.split("_")[-1].split("v")
         tag_date = tag_sp[0]
         tag_nu = tag_sp[1]
     except Exception:

@@ -37,6 +37,8 @@ class Website(models.Model):
     send_email = models.BooleanField(default=True)
     last_comit = models.CharField(max_length=100,default="-")
     user = models.ManyToManyField(User)
+    notify = models.BooleanField(default=False)
+    ident = models.CharField(max_length=100)
 
     def __unicode__(self):
         return self.name

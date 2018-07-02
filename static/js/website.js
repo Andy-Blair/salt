@@ -192,7 +192,7 @@ $(function () {
         if (Object.keys(row_data).length!==0){
             $.post("/salt/website/nt/"+row_data[0]['id']+"/",function (data, status) {
                 $("#tag_name").val(data);
-                // $("#tag_name").attr("readonly","readonly");
+                $("#tag_name").attr("readonly","readonly");
             });
             $("#tag_message").val("");
             $('#modal-tag').modal('toggle');
