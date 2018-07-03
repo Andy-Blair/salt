@@ -90,7 +90,7 @@ def detail_socket(request,operate):
         web_info = Website.objects.get(website_id=web_id)
         if web_info.send_email and web_info.notify:
             emails = Email_user.objects.all()
-            receiver = []
+            receiver = [user.email]
             for em in emails:
                 if em.send:
                     receiver.append(em.email)
