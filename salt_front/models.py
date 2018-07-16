@@ -60,7 +60,9 @@ class Commit(models.Model):
     com_id = models.AutoField(primary_key=True)
     tag_name = models.CharField(max_length=50)
     tag_message = models.CharField(max_length=5000)
+    rebuild_reson = models.CharField(max_length=5000,default='-')
     commit_id = models.CharField(max_length=100,unique=True)
+    has_send_email = models.BooleanField()
     update_date = models.DateTimeField(auto_now_add=True)
     website = models.ForeignKey(Website)
 

@@ -86,7 +86,6 @@ def detail_socket(request,operate):
         user_name = user.last_name + user.first_name
         web_id = request.GET.get("web_id")
         tag_name = request.GET.get("tag_name")
-        dep_con = request.GET.get("dep")
         web_info = Website.objects.get(website_id=web_id)
         if web_info.send_email and web_info.notify:
             emails = Email_user.objects.all()
@@ -142,11 +141,22 @@ def detail_socket(request,operate):
                             stdout = publicmethod.get_dval(sync_re,"stdout")
                             com = Commit.objects.get(commit_id=stdout.strip())
                             tagname = com.tag_name
+                            coms = Commit.objects.filter(tag_name__startswith="".join(tagname.split('v')[:-1]))
+                            send_tag = []
+                            for c in coms:
+                                if not c.has_send_email:
+                                    send_tag.append(c.tag_name)
                             tag_mes = com.tag_message
                             request.websocket.send("\nTag Name:\n%s\n" % tagname.encode('utf8'))
                             request.websocket.send("\nMessage:\n%s\n" % tag_mes.encode('utf8'))
                             request.websocket.send("\n------更新完成！------\n\n")
-                            mes = "Tag名称：%s<br/><br/>Tag信息：<br/>%s<br/>" % (tagname, tag_mes)
+                            mes = ""
+                            for t in send_tag:
+                                tag_de = Commit.objects.get(tag_name=t)
+                                if tag_de.rebuild_reson == '-':
+                                    mes += "Tag名称：<br/>&nbsp;&nbsp;%s<br/>Tag信息：<br/>&nbsp;&nbsp;%s<br/><br/>" % (tag_de.tag_name, tag_de.tag_message)
+                                else:
+                                    mes += "Tag名称：<br/>&nbsp;&nbsp;%s<br/>Tag信息：<br/>&nbsp;&nbsp;%s<br/>重复构建原因：<br/>&nbsp;&nbsp;%s<br/><br/>" % (tag_de.tag_name, tag_de.tag_message,tag_de.rebuild_reson)
                         else:
                             stderr = publicmethod.get_dval(sync_re,"stderr")
                             comment = publicmethod.get_dval(sync_re,"comment")
@@ -160,12 +170,16 @@ def detail_socket(request,operate):
                         raise
                     finally:
                         if will_send:
-                            content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>更新原因：<br/>%s<br/><br/>" \
-                                      "详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, dep_con, mes)
+                            content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>" \
+                                      "详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, mes)
                             publicmethod.send_mail(receiver, content)
                             will_send = False
                             web_info.notify = False
                             web_info.save()
+                            for t in send_tag:
+                                tag_de = Commit.objects.get(tag_name=t)
+                                tag_de.has_send_email = True
+                                tag_de.save()
                     # --- Read Tomcat Log start ---
                     if web_info.type.lower() == "tomcat" and re_tomcat:
                         war_folder = os.path.splitext(web_info.path)[0]
@@ -595,6 +609,7 @@ def build_socket(request,web_id,):
         for soc_m in request.websocket:
             tag_name = request.GET.get("tagname").lower()
             tag_message = request.GET.get("tagmessage")
+            rebuild_reson = request.GET.get("dep")
             web_info = Website.objects.get(website_id=web_id)
             proname = ".".join(web_info.git_url.split(":")[1].split(".")[:-1])
             dev_branch = web_info.dev_branch
@@ -691,7 +706,10 @@ def build_socket(request,web_id,):
                     tag = gl.create_tag(name="%s_%s_%s" % (web_info.ident,deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
                     try:
                         commit_id = tag.commit.id
-                        com = Commit(tag_name="%s_%s_%s" % (web_info.ident,deploy_env,tag_name),tag_message=tag_message,commit_id=commit_id,website=web_info)
+                        if not rebuild_reson:
+                            rebuild_reson = '-'
+                        com = Commit(tag_name="%s_%s_%s" % (web_info.ident,deploy_env,tag_name),tag_message=tag_message,
+                                     commit_id=commit_id,website=web_info,rebuild_reson=rebuild_reson,has_send_email=False)
                         com.save()
                         web_info.last_comit = tag.commit.id
                         web_info.notify = True

@@ -52,8 +52,6 @@ $(function () {
                         tr.appendTo(modal_table)
                     }
                     $('#modal-update').modal('toggle');
-                    $("#depcon").addClass("hide");
-                    $("#dep_con").empty();
                     $("#"+new_id).click(function () {
                         var servers=[];
                         $.each($("#modal_table input:checkbox:checked"),function () {
@@ -115,21 +113,14 @@ $(function () {
             update_modal.text($(this).text());
             update_modal.attr('id',new_id);
             update_modal.unbind();
-            $("#depcon").removeClass("hide");
-            $("#dep_con").val("");
             $("#"+new_id).click(function () {
-                if ($("#dep_con").val().length <= 15) {
-                    alert("请填写更新原因(15字以上)");
-                    return false;
-                }
-                var dep=document.getElementById("dep_con").value.replace(/\r\n/g, '<br/>').replace(/\n/g, '<br/>').replace(/\s/g, ' ');
                 var servers=[];
                 $.each($("#modal_table input:checkbox:checked"),function () {
                     servers.push($(this).val())
                 });
                 if (servers.length > 0){
                     var servers_str = servers.join(",");
-                    window.open("/salt/website/"+$(this).attr('name')+'/?web_id='+row_data[0]['id']+'&servers='+servers_str+'&dep='+dep)
+                    window.open("/salt/website/"+$(this).attr('name')+'/?web_id='+row_data[0]['id']+'&servers='+servers_str)
                 }
             });
             $('#modal-update').modal('toggle');
@@ -193,6 +184,10 @@ $(function () {
             $.post("/salt/website/nt/"+row_data[0]['id']+"/",function (data, status) {
                 $("#tag_name").val(data);
                 $("#tag_name").attr("readonly","readonly");
+                if (Number(data.split('v')[1])!==1){
+                    $("#depcon").removeClass('hidden');
+                    $("#dep_con").val("")
+                }
             });
             $("#tag_message").val("");
             $('#modal-tag').modal('toggle');
@@ -211,13 +206,19 @@ $(function () {
                     alert("Tag Name已经存在");
                     return false
                 }else {
-                    window.open("/salt/website/build/"+row_data[0]['id']+"?tagname="+tag_name+"&tagmessage="+tag_message)
-                    $('#modal-tag').modal('hide');
+                    if ($("#dep_con").val().length===0 && !$("#depcon").hasClass('hidden')) {
+                        alert("请填写重复构建原因");
+                        return false;
+                    }else {
+                        var dep=document.getElementById("dep_con").value.replace(/\r\n/g, '<br/>').replace(/\n/g, '<br/>').replace(/\s/g, ' ');
+                        window.open("/salt/website/build/" + row_data[0]['id'] + "?tagname=" + tag_name + "&tagmessage=" + tag_message + '&dep=' + dep);
+                        $('#modal-tag').modal('hide');
+                    }
                 }
             });
             }
         }else {
-            alert("Tag Name或者Message没有填写");
+            alert("上线内容没有填写");
             return false
         }
     })

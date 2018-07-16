@@ -128,7 +128,7 @@ def send_mail(recver,content):
     :param recver: type:List,receve user list
     :param content: string
     '''
-    sender = "monitor@jingzhengu.com"
+    sender = "release@jingzhengu.com"
     message = MIMEText(content, 'html', 'utf-8')
     message['Form'] = Header(sender, "utf-8")
     message['To'] = Header(";".join(recver), 'utf-8')
