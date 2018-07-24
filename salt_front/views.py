@@ -141,7 +141,7 @@ def detail_socket(request,operate):
                             stdout = publicmethod.get_dval(sync_re,"stdout")
                             com = Commit.objects.get(commit_id=stdout.strip())
                             tagname = com.tag_name
-                            coms = Commit.objects.filter(tag_name__startswith="".join(tagname.split('v')[:-1]))
+                            coms = Commit.objects.filter(tag_name__startswith="v".join(tagname.split('v')[:-1]))
                             send_tag = []
                             for c in coms:
                                 if not c.has_send_email:
