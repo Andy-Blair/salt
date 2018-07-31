@@ -88,6 +88,8 @@ def detail_socket(request,operate):
         tag_name = request.GET.get("tag_name")
         web_info = Website.objects.get(website_id=web_id)
         if web_info.send_email and web_info.notify:
+            web_info.notify = False
+            web_info.save()
             emails = Email_user.objects.all()
             receiver = [user.email]
             for em in emails:
