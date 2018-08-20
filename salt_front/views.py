@@ -159,29 +159,27 @@ def detail_socket(request,operate):
                                     mes += "Tag名称：<br/>&nbsp;&nbsp;%s<br/>Tag信息：<br/>&nbsp;&nbsp;%s<br/><br/>" % (tag_de.tag_name, tag_de.tag_message)
                                 else:
                                     mes += "Tag名称：<br/>&nbsp;&nbsp;%s<br/>Tag信息：<br/>&nbsp;&nbsp;%s<br/>重复构建原因：<br/>&nbsp;&nbsp;%s<br/><br/>" % (tag_de.tag_name, tag_de.tag_message,tag_de.rebuild_reson)
+                            if will_send:
+                                content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>" \
+                                          "详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, mes)
+                                publicmethod.send_mail(receiver, content)
+                                will_send = False
+                                web_info.notify = False
+                                web_info.save()
+                                for t in send_tag:
+                                    tag_de = Commit.objects.get(tag_name=t)
+                                    tag_de.has_send_email = True
+                                    tag_de.save()
                         else:
                             stderr = publicmethod.get_dval(sync_re,"stderr")
                             comment = publicmethod.get_dval(sync_re,"comment")
                             request.websocket.send("错误信息：\n")
                             request.websocket.send("Comment:\n%s\n" % comment)
                             request.websocket.send("ERROR:\n%s\n" % stderr)
-                            mes = stderr
                     except Exception:
                         request.websocket.send("更新失败,请联系管理员!")
-                        mes = "更新失败"
                         raise
-                    finally:
-                        if will_send:
-                            content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>" \
-                                      "详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, mes)
-                            publicmethod.send_mail(receiver, content)
-                            will_send = False
-                            web_info.notify = False
-                            web_info.save()
-                            for t in send_tag:
-                                tag_de = Commit.objects.get(tag_name=t)
-                                tag_de.has_send_email = True
-                                tag_de.save()
+
                     # --- Read Tomcat Log start ---
                     if web_info.type.lower() == "tomcat" and re_tomcat:
                         war_folder = os.path.splitext(web_info.path)[0]
@@ -491,7 +489,7 @@ def server_manage(request):
             if exsit:
                 continue
             else:
-                server = Servers(ipaddress=k, ostype=v['os'], user=user)
+                server = Servers(ipaddress=k, ostype=v['os'])
                 server.save()
         return HttpResponse()
     return render_to_response('server_manage.html',{'login_user':login_user})

@@ -187,6 +187,9 @@ $(function () {
                 if (Number(data.split('v')[1])!==1){
                     $("#depcon").removeClass('hidden');
                     $("#dep_con").val("")
+                }else {
+                    $("#dep_con").val("");
+                    $("#depcon").addClass('hidden');
                 }
             });
             $("#tag_message").val("");

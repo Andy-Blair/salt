@@ -9,15 +9,19 @@ from models import *
 
 class ServersAdmin(admin.ModelAdmin):
     list_display = ('ipaddress','ostype','describe')
+    search_fields = ['ipaddress','ostype','describe']
 
 class WebsiteAdmin(admin.ModelAdmin):
     list_display = ('name','url','path','type','git_url')
+    search_fields = ['name','url','path','type','git_url']
 
 class ServicesAdmin(admin.ModelAdmin):
     list_display = ('name','belong')
+    search_fields = ['name','belong']
 
 class Email_userAdmin(admin.ModelAdmin):
     list_display = ('email','send')
+    search_fields = ['email','send']
 
 
 admin.site.register(Servers,ServersAdmin)
