@@ -36,9 +36,11 @@ class Website(models.Model):
     create_tag_result = models.CharField(max_length=50,default="-")
     send_email = models.BooleanField(default=True)
     last_comit = models.CharField(max_length=100,default="-")
+    cur_version = models.CharField(max_length=100,default="-")
     user = models.ManyToManyField(User)
-    notify = models.BooleanField(default=False)
+    already_notify = models.BooleanField(default=False)
     ident = models.CharField(max_length=100)
+    update_success = models.BooleanField(default=False)
 
     def __unicode__(self):
         return self.name
@@ -63,8 +65,10 @@ class Commit(models.Model):
     rebuild_reson = models.CharField(max_length=5000,default='-')
     commit_id = models.CharField(max_length=100,unique=True)
     has_send_email = models.BooleanField()
-    update_date = models.DateTimeField(auto_now_add=True)
+    build_date = models.DateTimeField(auto_now_add=True)
     website = models.ForeignKey(Website)
+    update_status = models.BooleanField(default=False)
+    update_date = models.DateTimeField(null=True)
 
     def __unicode__(self):
         return self.tag_name

@@ -115,12 +115,14 @@
     $(function () {
         $("#apptype option").each(function () {
             if($(this).text() === '{{ webinfo.type }}'){
-                $(this).attr('selected','selected')
+                $(this).attr('selected','selected');
+                $("#apptype").attr('disabled','disabled')
             }
         });
         $("#deploy_env option").each(function () {
             if($(this).text() === '{{ webinfo.deploy_env }}'){
-                $(this).attr('selected','selected')
+                $(this).attr('selected','selected');
+                $("#deploy_env").attr('disabled','disabled')
             }
         });
         var app_type = $("#apptype").children('option:selected').text();

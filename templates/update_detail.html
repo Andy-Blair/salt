@@ -15,10 +15,13 @@
         socket.send("start")
     };
     socket.onmessage=function (event) {
-        var em =$("#retun_data");
-        var s_text=em.text();
-        em.text(s_text+event.data)
-
+        if(event.data !== "end"){
+            var em =$("#retun_data");
+            var s_text=em.text();
+            em.text(s_text+event.data)
+        } else {
+            socket.close()
+        }
     }
     });
     </script>

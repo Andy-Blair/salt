@@ -5,6 +5,7 @@ from django.shortcuts import render_to_response, HttpResponse, HttpResponseRedir
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.utils import timezone
 from models import *
 from salt import client
 import json
@@ -87,9 +88,7 @@ def detail_socket(request,operate):
         web_id = request.GET.get("web_id")
         tag_name = request.GET.get("tag_name")
         web_info = Website.objects.get(website_id=web_id)
-        if web_info.send_email and web_info.notify:
-            web_info.notify = False
-            web_info.save()
+        if web_info.send_email:
             emails = Email_user.objects.all()
             receiver = [user.email]
             for em in emails:
@@ -112,36 +111,35 @@ def detail_socket(request,operate):
                 cli = client.LocalClient()
                 request.websocket.send("正在更新......\n\n")
                 for i in web_server_ip:
+                    ip_info = Servers.objects.get(ipaddress=i.strip())
                     try:
                         request.websocket.send("\n%s:\n" % i.strip().encode('utf8'))
                         if operate == "update":
-                            sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_update' % (sls_name, sls_name)])
-                            logger.info("update_result %s" % sync_re)
+                            com_id = web_info.last_comit
                         else:
                             commit = Commit.objects.get(tag_name=tag_name,website_id=web_id)
-                            commit_id = commit.commit_id
-                            file_path = "/srv/salt/pkg/script/web_git/%s/%s_rollback.sls" % (sls_name, sls_name)
-                            f = open(file_path,'r')
-                            lines = f.readlines()
-                            f.close()
-                            for line in range(len(lines)):
-                                if "name" in lines[line]:
-                                    if apptype == "IIS":
-                                        lines[line] = "    - name: python d:/product/web_git/%s.py rollback %s\n" % (sls_name,commit_id)
-                                    else:
-                                        lines[line] = "    - name: python /apps/product/web_git/%s.py rollback %s\n" % (sls_name, commit_id)
-                                    break
-                            new_f = open(file_path,'w')
-                            new_f.writelines(lines)
-                            new_f.close()
-                            sync_re = cli.cmd(tgt=i.strip(), fun='state.sls', arg=['pkg.script.web_git.%s.%s_rollback' % (sls_name, sls_name)])
-                            logger.info("rollback_result %s" % sync_re)
-                        result = publicmethod.get_dval(sync_re,"result")
-                        if result:
+                            com_id = commit.commit_id
+                        if ip_info.ostype.lower() == "windows":
+                            arg = ['python d:/product/web_git/{name}.py {operate} {com_id}'.format(name=sls_name, operate=operate,com_id=com_id)]
+                        else:
+                            war_path = os.path.split(web_info.path)[0]
+                            arg = ['runas=app','python /apps/product/web_git/{name}.py {operate} {com_id} {war_path}'.format(name=sls_name, operate=operate, com_id=com_id, war_path=war_path)]
+                        re_jid = cli.cmd_async(tgt=i.strip(), fun='cmd.run_all', arg=arg)
+                        sync_re = {}
+                        timeout = 60
+                        wait_time = 0
+                        while wait_time < timeout:
+                            sync_re = cli.get_cache_returns(re_jid)
+                            if sync_re != {}:
+                                break
+                            wait_time += 1
+                            time.sleep(1)
+                        logger.info("{operate} {re}".format(operate=operate, re=sync_re))
+                        result = publicmethod.get_dval(sync_re,"retcode")
+                        if result == 0:
                             re_tomcat = True
                             request.websocket.send("------当前版本信息------\n")
-                            stdout = publicmethod.get_dval(sync_re,"stdout")
-                            com = Commit.objects.get(commit_id=stdout.strip())
+                            com = Commit.objects.get(commit_id=com_id)
                             tagname = com.tag_name
                             coms = Commit.objects.filter(tag_name__startswith="v".join(tagname.split('v')[:-1]))
                             send_tag = []
@@ -152,6 +150,13 @@ def detail_socket(request,operate):
                             request.websocket.send("\nTag Name:\n%s\n" % tagname.encode('utf8'))
                             request.websocket.send("\nMessage:\n%s\n" % tag_mes.encode('utf8'))
                             request.websocket.send("\n------更新完成！------\n\n")
+                            web_info.cur_version = com_id
+                            web_info.update_success = True
+                            web_info.save()
+                            coms = Commit.objects.get(commit_id=com_id)
+                            coms.update_status = True
+                            coms.update_date = timezone.now()
+                            coms.save()
                             mes = ""
                             for t in send_tag:
                                 tag_de = Commit.objects.get(tag_name=t)
@@ -160,22 +165,21 @@ def detail_socket(request,operate):
                                 else:
                                     mes += "Tag名称：<br/>&nbsp;&nbsp;%s<br/>Tag信息：<br/>&nbsp;&nbsp;%s<br/>重复构建原因：<br/>&nbsp;&nbsp;%s<br/><br/>" % (tag_de.tag_name, tag_de.tag_message,tag_de.rebuild_reson)
                             if will_send:
-                                content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>" \
-                                          "详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, mes)
-                                publicmethod.send_mail(receiver, content)
-                                will_send = False
-                                web_info.notify = False
-                                web_info.save()
-                                for t in send_tag:
-                                    tag_de = Commit.objects.get(tag_name=t)
-                                    tag_de.has_send_email = True
-                                    tag_de.save()
+                                if web_info.update_success and not web_info.already_notify:
+                                    web_info.already_notify = True
+                                    web_info.save()
+                                    content = "操作人：%s<br/><br/>操作类型：%s<br/><br/>项目：%s<br/><br/>" \
+                                              "详细信息：<br/>%s<br/><br/>" % (user_name, operate, web_info.name, mes)
+                                    publicmethod.send_mail(receiver, content)
+                                    will_send = False
+                                    for t in send_tag:
+                                        tag_de = Commit.objects.get(tag_name=t)
+                                        tag_de.has_send_email = True
+                                        tag_de.save()
                         else:
-                            stderr = publicmethod.get_dval(sync_re,"stderr")
-                            comment = publicmethod.get_dval(sync_re,"comment")
-                            request.websocket.send("错误信息：\n")
-                            request.websocket.send("Comment:\n%s\n" % comment)
-                            request.websocket.send("ERROR:\n%s\n" % stderr)
+                            stderr = publicmethod.get_dval(sync_re,"ret")
+                            request.websocket.send("错误信息：\n{stderr}".format(stderr=stderr))
+                            logger.error(stderr)
                     except Exception:
                         request.websocket.send("更新失败,请联系管理员!")
                         raise
@@ -191,7 +195,7 @@ def detail_socket(request,operate):
                         if tom_stop_result is not None:
                             if len(tom_stop_result) != 0:
                                 request.websocket.send(tom_stop_result+"\n\n")
-                                del_war_folder_re = cli.cmd(tgt=ipadd, fun='cmd.run', arg=['rm -rf %s' % war_folder])
+                                del_war_folder_re = cli.cmd_full_return(tgt=ipadd, fun='cmd.run', arg=['rm -rf %s' % war_folder])
                                 logger.info("del_war_folder_result %s" % del_war_folder_re)
                             else:
                                 tom_stop_false = True
@@ -216,7 +220,7 @@ def detail_socket(request,operate):
                                     read_log = cli.cmd(tgt=ipadd, fun='cmd.script', arg=['salt://pkg/script/read_log.py'])
                                     log_con = publicmethod.get_dval(read_log, 'stdout')
                                     if len(log_con) > 0:
-                                        request.websocket.send(log_con)
+                                        request.websocket.send("\n" + log_con)
                                         if "Server startup in" in log_con:
                                             request.websocket.send("\n------Start End------\n")
                                             break
@@ -224,7 +228,7 @@ def detail_socket(request,operate):
                                 request.websocket.send("Can't read tomcat log\n")
                     # --- Read Tomcat Log end ---
                 break
-        request.websocket.close()
+        request.websocket.send("end")
 
 
 @login_required(login_url=login_url)
@@ -315,7 +319,7 @@ def website_modify(request,web_id):
         servers.append(i.ipaddress)
     serverip = ','.join(servers)
     if request.method == "GET":
-        war_name = os.path.split(webinfo.path)[1]
+        war_name = "/".join(webinfo.path.split("/")[5:])
         return render_to_response('website_modify.html', {'webinfo':webinfo, 'serverip':serverip, 'login_user':login_user,'jk_name':jk_name,'war_name':war_name})
     elif request.method == "POST":
         rec_data = request.POST
@@ -513,11 +517,14 @@ def server_list(request):
 def history(request,web_id):
     user = User.objects.get(id=request.session['_auth_user_id'])
     login_user = user.last_name + user.first_name
-    commit = Commit.objects.filter(website_id=web_id).order_by('-com_id')
+    cur_version = Website.objects.get(website_id=web_id).cur_version
+    commit = Commit.objects.filter(website_id=web_id, update_status=True).order_by('-com_id')
     history = []
     for i in commit:
         data = {}
         data['update_time'] = i.update_date
+        if i.commit_id == cur_version:
+            data['cur_version'] = True
         data['tag_name'] = i.tag_name
         data['message'] = i.tag_message
         history.append(data)
@@ -701,6 +708,8 @@ def build_socket(request,web_id,):
                 if build_result == "SUCCESS":
                     request.websocket.send("\n\n构建成功！\n\n")
                     web_info.build_result = "success"
+                    web_info.already_notify = False
+                    web_info.update_success = False
                     web_info.save()
                     request.websocket.send("正在创建Tag标签……\n")
                     tag = gl.create_tag(name="%s_%s_%s" % (web_info.ident,deploy_env,tag_name),branch="%s_deploy" % deploy_env,message=tag_message)
@@ -712,7 +721,6 @@ def build_socket(request,web_id,):
                                      commit_id=commit_id,website=web_info,rebuild_reson=rebuild_reson,has_send_email=False)
                         com.save()
                         web_info.last_comit = tag.commit.id
-                        web_info.notify = True
                         web_info.save()
                     except Exception:
                         tag.delete()

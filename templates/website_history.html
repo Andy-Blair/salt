@@ -21,7 +21,13 @@
                         <div style="height: 25px;text-align: center; vertical-align: middle;">Tag_Name</div>
                         <div class="fht-cell"></div>
                     </td>
-                    <td style="text-align: center; vertical-align: middle; ">{{ commit.tag_name }}</td>
+                    <td style="text-align: center; vertical-align: middle; ">
+                        {% if commit.cur_version %}
+                            {{ commit.tag_name }}&nbsp;&nbsp;&nbsp;&nbsp;<font color="red">当前版本</font>
+                        {% else %}
+                            {{ commit.tag_name }}
+                        {% endif %}
+                    </td>
                 </tr>
                 <tr>
                     <td style="vertical-align: middle">
