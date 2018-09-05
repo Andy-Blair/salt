@@ -59,17 +59,25 @@
           <ul class="sidebar-menu">
               <li class="active">
                   <a href="{% url 'website' %}">
-                      <i class="fa fa-pencil-square-o "></i>
+                      <i class="fa fa-desktop "></i>
                       <span>站点发布</span>
                   </a>
                   <a href="{% url 'website_manage' %}">
-                      <i class="fa fa-list-alt "></i>
+                      <i class="fa fa-pencil-square-o "></i>
                       <span>站点管理</span>
                   </a>
                   {% if login_user == "admin" %}
                   <a href="{% url 'server_manage' %}">
                       <i class="fa fa-server "></i>
                       <span>服务器管理</span>
+                  </a>
+                  <a href="{% url 'saltstack' %}">
+                      <i class="fa fa-product-hunt "></i>
+                      <span>权限管理</span>
+                  </a>
+                  <a href="{% url 'saltstack' %}">
+                      <i class="fa fa-globe "></i>
+                      <span>Saltstack</span>
                   </a>
                   {% endif %}
               </li>

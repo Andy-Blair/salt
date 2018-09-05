@@ -80,6 +80,7 @@ def update_detail(request,operate):
     return render_to_response('update_detail.html',{'login_user': login_user, 'title': '%s Web %s Result' % (web_name,operate.capitalize())})
 
 
+@login_required(login_url=login_url)
 @accept_websocket
 def detail_socket(request,operate):
     if request.is_websocket():
@@ -417,65 +418,37 @@ def website_list(request):
         if user.username == "admin":
             show_all = True
         if show_all:
-            wesite = Website.objects.all()
-            for i in wesite:
-                d = {}
-                d['id'] = i.website_id
-                d['website_name'] = i.name
-                init_fail = False
-                init_result = i.init_result
-                if init_result == 0:
-                    d['website_url'] = i.url + '...<font color="#FF0000">not init</font>'
-                    init_fail = True
-                else:
-                    d['website_url'] = i.url
-                if init_fail:
-                    d['init_result'] = 0
-                else:
-                    d['init_result'] = 1
-                web_type = i.type
-                d['website_type'] = web_type
-                d['website_env'] = i.deploy_env
-                d['website_status'] = i.deploy_status
-                d['website_dev_branch'] = i.dev_branch
-                server = i.server.values()
-                ips = []
-                for item in range(len(server)):
-                    ip = server[item]['ipaddress']
-                    ips.append(ip)
-                    d['website_ostype'] = server[item]['ostype']
-                d['website_server'] = ','.join(ips)
-                data.append(d)
+            webs = Website.objects.all()
         else:
             webs = user.website_set.all()
-            for web in webs:
-                d = {}
-                d['id'] = web.website_id
-                d['website_name'] = web.name
+        for web in webs:
+            d = {}
+            d['id'] = web.website_id
+            d['website_name'] = web.name
+            d['website_url'] = web.url
+            d['website_type'] = web.type
+            d['website_env'] = web.deploy_env
+            d['website_status'] = web.deploy_status
+            d['website_dev_branch'] = web.dev_branch
+            init_fail = False
+            init_result = web.init_result
+            if init_result == 0:
+                d['website_url'] = web.url + '...<font color="#FF0000">not init</font>'
+                init_fail = True
+            else:
                 d['website_url'] = web.url
-                d['website_type'] = web.type
-                d['website_env'] = web.deploy_env
-                d['website_status'] = web.deploy_status
-                d['website_dev_branch'] = web.dev_branch
-                init_fail = False
-                init_result = web.init_result
-                if init_result == 0:
-                    d['website_url'] = web.url + '...<font color="#FF0000">not init</font>'
-                    init_fail = True
-                else:
-                    d['website_url'] = web.url
-                if init_fail:
-                    d['init_result'] = 0
-                else:
-                    d['init_result'] = 1
-                server = web.server.values()
-                ips = []
-                for item in range(len(server)):
-                    ip = server[item]['ipaddress']
-                    ips.append(ip)
-                    d['website_ostype'] = server[item]['ostype']
-                d['website_server'] = ','.join(ips)
-                data.append(d)
+            if init_fail:
+                d['init_result'] = 0
+            else:
+                d['init_result'] = 1
+            server = web.server.values()
+            ips = []
+            for item in range(len(server)):
+                ip = server[item]['ipaddress']
+                ips.append(ip)
+                d['website_ostype'] = server[item]['ostype']
+            d['website_server'] = ','.join(ips)
+            data.append(d)
         return HttpResponse(json.dumps(data), content_type="application/json")
 
 
@@ -540,6 +513,7 @@ def tomcat_operation(request,operation,web_id):
     return render_to_response('update_detail.html',{'login_user': login_user, 'title': '%s Tomcat %s Result' % (web_name,operation.capitalize())})
 
 
+@login_required(login_url=login_url)
 @accept_websocket
 def tomcat_op_result(request,operation,web_id):
     if request.is_websocket():
@@ -818,3 +792,10 @@ def next_tag(request,web_id):
     else:
         next_tagname = "%sv1" % cur_date
     return HttpResponse(next_tagname)
+
+
+@login_required(login_url=login_url)
+def saltstack(request):
+    user = User.objects.get(id=request.session['_auth_user_id'])
+    login_user = user.last_name + user.first_name
+    return render_to_response('saltstack.html',{'login_user':login_user,'title':'Saltstack Manage'})
